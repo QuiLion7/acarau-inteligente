@@ -7,25 +7,42 @@ export function ListaCamadas({
   camadas: readonly CamadaCarregada[]
 }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       {camadas.map((camada) => (
-        <li
+        <article
           key={camada.id}
-          className="flex flex-col gap-1 rounded-xl border bg-card p-4 text-card-foreground"
+          aria-labelledby={`camada-${camada.id}`}
+          className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-card-foreground"
         >
-          <h2 className="font-medium">{camada.nome}</h2>
-          <dl className="text-sm text-muted-foreground">
-            <div className="flex gap-1.5">
-              <dt>Fonte:</dt>
-              <dd className="text-foreground">{camada.fonte}</dd>
-            </div>
-            <div className="flex gap-1.5">
-              <dt>Versão:</dt>
-              <dd className="text-foreground">{camada.versao}</dd>
-            </div>
+          <h2 id={`camada-${camada.id}`} className="font-medium">
+            {camada.nome}
+          </h2>
+          <dl className="flex flex-col gap-1 text-sm text-muted-foreground">
+            <Campo rotulo="Fonte" valor={camada.fonte} />
+            <Campo rotulo="Etiqueta" valor={camada.etiqueta} />
+            <Campo rotulo="Versão" valor={camada.versao} />
+            <Campo rotulo="Data de referência" valor={camada.dataReferencia} />
+            <Campo rotulo="Cobertura" valor={camada.cobertura} />
           </dl>
-        </li>
+          <div className="flex flex-col gap-1 text-sm">
+            <h3 className="text-muted-foreground">Limitações conhecidas</h3>
+            <ul className="list-disc pl-5">
+              {camada.limitacoes.map((limitacao) => (
+                <li key={limitacao}>{limitacao}</li>
+              ))}
+            </ul>
+          </div>
+        </article>
       ))}
-    </ul>
+    </div>
+  )
+}
+
+function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className="flex flex-wrap gap-x-1.5">
+      <dt>{rotulo}:</dt>
+      <dd className="text-foreground">{valor}</dd>
+    </div>
   )
 }
