@@ -17,7 +17,7 @@ test.describe("módulos ainda não entregues", () => {
     await expect(conteudo).not.toContainText(/\d/)
   })
 
-  for (const rota of ["/territorio", "/educacao", "/obras", "/relatorios"]) {
+  for (const rota of ["/educacao", "/obras", "/relatorios"]) {
     test(`${rota} também mostra disponível em breve`, async ({ page }) => {
       await page.goto(rota)
 

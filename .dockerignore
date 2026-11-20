@@ -6,6 +6,7 @@ node_modules
 !.env.example
 coverage
 dados
+!dados/gerados
 docs
 sdd
 .claude

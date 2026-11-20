@@ -1,19 +1,30 @@
 import { expect, test } from "./fixtures"
 
 test.describe("fontes e limitações", () => {
-  test("informa que nenhuma camada de dados foi carregada, sem listar escola nem bairro", async ({
+  test("lista as 4 camadas com etiqueta, versão, data de referência e limitações, sem lagoas nem distritos", async ({
     page,
   }) => {
     await page.goto("/fontes")
 
     const conteudo = page.locator("#conteudo")
+    const cartoes = conteudo.getByRole("article")
+    await expect(cartoes).toHaveCount(4)
+    await expect(cartoes.getByRole("heading", { level: 2 })).toHaveText([
+      "Bairros (Unidades de Vizinhança)",
+      "Escolas",
+      "Limite municipal",
+      "Mapa base",
+    ])
+    for (const cartao of await cartoes.all()) {
+      await expect(cartao).toContainText("Etiqueta:")
+      await expect(cartao).toContainText("Versão:")
+      await expect(cartao).toContainText("Data de referência:")
+      await expect(cartao).toContainText("Limitações conhecidas")
+    }
     await expect(
-      conteudo.getByRole("heading", {
-        name: "Nenhuma camada de dados foi carregada ainda",
-      })
-    ).toBeVisible()
-    await expect(conteudo.getByRole("listitem")).toHaveCount(0)
-    await expect(conteudo).not.toContainText(/escola|bairro/i)
+      cartoes.filter({ hasText: "Bairros (Unidades de Vizinhança)" })
+    ).toContainText("Data de referência:Não informada")
+    await expect(conteudo).not.toContainText(/lagoa|distrito/i)
   })
 
   test("a faixa de contexto leva a Fontes e limitações", async ({ page }) => {

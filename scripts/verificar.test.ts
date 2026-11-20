@@ -1,6 +1,7 @@
 import { ETAPAS, verificar } from "@/scripts/verificar.mjs"
 
 const NOMES_NA_ORDEM = [
+  "dados:conferir",
   "db:preparar-teste",
   "lint",
   "typecheck",
@@ -38,11 +39,26 @@ describe("verificar", () => {
 
     expect(resultado).toEqual({ ok: false, etapa: "test:ci" })
     expect(chamados).toEqual([
+      "dados:conferir",
       "db:preparar-teste",
       "lint",
       "typecheck",
       "test:ci",
     ])
     expect(saida.join("")).toContain("FALHOU na etapa: test:ci")
+  })
+
+  it("confere os artefatos de dados antes do lint", () => {
+    const nomes = ETAPAS.map((etapa) => etapa.nome)
+
+    expect(nomes).toContain("dados:conferir")
+    expect(nomes.indexOf("dados:conferir")).toBeLessThan(nomes.indexOf("lint"))
+    expect(ETAPAS.find((e) => e.nome === "dados:conferir")?.comando).toEqual([
+      "npm",
+      "run",
+      "dados:territorio",
+      "--",
+      "--conferir",
+    ])
   })
 })

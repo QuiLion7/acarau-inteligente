@@ -43,4 +43,33 @@ describe("/api/[...rota]", () => {
     expect(resposta.status).toBe(404)
     expect(await resposta.json()).toMatchObject({ code: "NAO_ENCONTRADO" })
   })
+
+  // CA-01.21: o território é lido por Server Component; não há endpoint de leitura nem de escrita.
+  it.each([
+    ["/api/territorios"],
+    ["/api/territorios/uv-10"],
+    ["/api/bairros"],
+    ["/api/escolas"],
+  ])(
+    "recusa escrita em %s com 404 NAO_ENCONTRADO no envelope",
+    async (caminho) => {
+      const manipuladores = { POST, PUT, PATCH, DELETE }
+
+      for (const [metodo, manipulador] of Object.entries(manipuladores)) {
+        const resposta = await manipulador(
+          new NextRequest(`http://localhost:3000${caminho}`, {
+            method: metodo,
+            headers: { "x-request-id": REQUEST_ID },
+          })
+        )
+
+        expect(resposta.status).toBe(404)
+        expect(await resposta.json()).toEqual({
+          code: "NAO_ENCONTRADO",
+          message: "Recurso não encontrado.",
+          requestId: REQUEST_ID,
+        })
+      }
+    }
+  )
 })

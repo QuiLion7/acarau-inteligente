@@ -54,6 +54,7 @@ const coverageThreshold = {
   "./lib/auth/contas-demo.ts": { lines: 80, branches: 80 },
   "./lib/auth/bloqueio-login.ts": { lines: 80, branches: 80 },
   "./lib/auth/caminho-retorno.ts": { lines: 80, branches: 80 },
+  "./lib/filtros/filtros-url.ts": { lines: 80, branches: 80 },
   "./lib/server/auth/cookie-sessao.ts": { lines: 80, branches: 80 },
   "./lib/server/auth/sessao-repositorio.ts": { lines: 80, branches: 80 },
   "./lib/server/auth/tentativa-login-repositorio.ts": {
@@ -68,6 +69,23 @@ const coverageThreshold = {
   "./lib/server/http/request-id.ts": { lines: 80, branches: 80 },
   "./lib/server/http/rota-api.ts": { lines: 80, branches: 80 },
   "./lib/server/log.ts": { lines: 80, branches: 80 },
+  "./lib/server/territorio/territorio-repositorio.ts": {
+    lines: 80,
+    branches: 80,
+  },
+  "./lib/territorio/geopackage.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/projecao.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/geometria.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/atribuicao-escolas.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/nome-bairro.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/validacao-carga.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/montar-territorio.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/ler-csv.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/busca-bairros.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/formato.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/estilo-mapa.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/filtro-escolas.ts": { lines: 80, branches: 80 },
+  "./lib/territorio/estado-escola.ts": { lines: 80, branches: 80 },
 }
 
 // `projects` precisa de cada projeto passado pelo next/jest (SWC, alias, mocks de CSS e fonte).
@@ -82,6 +100,8 @@ async function configurar() {
     collectCoverageFrom: [
       "lib/**/*.{ts,tsx}",
       "!lib/utils.ts",
+      // Só tipos: não há o que cobrir.
+      "!lib/territorio/insumos-carga.ts",
       "!**/*.test.{ts,tsx}",
       "!**/*.d.ts",
     ],

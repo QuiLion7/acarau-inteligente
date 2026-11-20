@@ -1,6 +1,11 @@
 import AxeBuilder from "@axe-core/playwright"
 
 import { expect, test } from "./fixtures"
+import {
+  aguardarMapaPronto,
+  clicarNoPonto,
+  pontoInteriorDe,
+} from "./mapa-helpers"
 
 test.describe("início", () => {
   test("o visitante abre / e vê nome, selo, menu com 5 módulos, faixa Todos e nenhum número de dado", async ({
@@ -39,6 +44,44 @@ test.describe("início", () => {
     ).toBeVisible()
 
     await expect(page.locator("#conteudo")).not.toContainText(/\d/)
+  })
+
+  test("clicar num bairro do mapa resumido leva ao Território com ele selecionado, e o Início segue sem número de dado", async ({
+    page,
+  }) => {
+    await page.goto("/")
+    const mapa = page.getByRole("region", {
+      name: "Mapa resumido dos bairros de Acaraú",
+    })
+    await aguardarMapaPronto(mapa)
+    await expect(page.locator("#conteudo")).not.toContainText(/\d/)
+
+    await clicarNoPonto(mapa, pontoInteriorDe("uv-10"))
+
+    await expect(page).toHaveURL(/\/territorio\?bairro=uv-10$/)
+    await expect(
+      page.getByRole("article").getByRole("heading", { name: "Centro" })
+    ).toBeVisible()
+    await expect(
+      page
+        .getByRole("region", { name: "Contexto da consulta" })
+        .getByText("Bairro:")
+        .locator("xpath=following-sibling::dd")
+    ).toHaveText("Centro")
+  })
+
+  test("o mapa resumido não leva escolas nem controle de camadas", async ({
+    page,
+  }) => {
+    await page.goto("/")
+    await aguardarMapaPronto(
+      page.getByRole("region", { name: "Mapa resumido dos bairros de Acaraú" })
+    )
+
+    await expect(
+      page.getByRole("group", { name: "Camadas do mapa" })
+    ).toHaveCount(0)
+    await expect(page.getByRole("region", { name: "Legenda" })).toHaveCount(0)
   })
 
   test("não há tema escuro nem atalho que o alterne", async ({ page }) => {

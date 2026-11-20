@@ -4,6 +4,11 @@ import { spawnSync } from "node:child_process"
 import { pathToFileURL } from "node:url"
 
 export const ETAPAS = [
+  // Os artefatos versionados em dados/gerados precisam bater com os insumos; a conferência é rápida e não usa banco.
+  {
+    nome: "dados:conferir",
+    comando: ["npm", "run", "dados:territorio", "--", "--conferir"],
+  },
   // Sobe o db do compose e prepara acarau_teste/acarau_e2e: sem isso os testes de integração e o E2E não têm banco.
   { nome: "db:preparar-teste", comando: ["npm", "run", "db:preparar-teste"] },
   { nome: "lint", comando: ["npm", "run", "lint"] },

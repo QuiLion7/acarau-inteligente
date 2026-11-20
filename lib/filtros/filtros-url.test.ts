@@ -1,4 +1,10 @@
-import { comFiltros, lerFiltros, TODOS } from "@/lib/filtros/filtros-url"
+import {
+  comFiltros,
+  lerFiltros,
+  resolverBairro,
+  TODOS,
+} from "@/lib/filtros/filtros-url"
+import type { BairroResumo } from "@/lib/territorio/artefato-schema"
 
 function parametros(consulta: string): URLSearchParams {
   return new URLSearchParams(consulta)
@@ -6,8 +12,8 @@ function parametros(consulta: string): URLSearchParams {
 
 describe("lerFiltros", () => {
   it("lê bairro e período da URL", () => {
-    expect(lerFiltros(parametros("bairro=Centro&periodo=2025"))).toEqual({
-      bairro: "Centro",
+    expect(lerFiltros(parametros("bairro=uv-10&periodo=2025"))).toEqual({
+      bairro: "uv-10",
       periodo: "2025",
     })
   })
@@ -24,7 +30,7 @@ describe("lerFiltros", () => {
   })
 
   it("apara os espaços das pontas", () => {
-    expect(lerFiltros(parametros("bairro=%20Centro%20")).bairro).toBe("Centro")
+    expect(lerFiltros(parametros("bairro=%20uv-10%20")).bairro).toBe("uv-10")
   })
 
   it("corta em 80 caracteres e mantém 80 inteiros", () => {
@@ -38,16 +44,16 @@ describe("lerFiltros", () => {
   })
 
   it("ignora outros parâmetros da URL", () => {
-    expect(lerFiltros(parametros("x=1&bairro=Centro")).periodo).toBe(TODOS)
+    expect(lerFiltros(parametros("x=1&bairro=uv-10")).periodo).toBe(TODOS)
   })
 })
 
 describe("comFiltros", () => {
   it("reaplica bairro e período ao link", () => {
-    const filtros = { bairro: "Centro", periodo: "2025" }
+    const filtros = { bairro: "uv-10", periodo: "2025" }
 
     expect(comFiltros("/saude", filtros)).toBe(
-      "/saude?bairro=Centro&periodo=2025"
+      "/saude?bairro=uv-10&periodo=2025"
     )
   })
 
@@ -60,10 +66,10 @@ describe("comFiltros", () => {
   })
 
   it("preserva outros parâmetros e o fragmento", () => {
-    const filtros = { bairro: "Centro", periodo: TODOS }
+    const filtros = { bairro: "uv-10", periodo: TODOS }
 
     expect(comFiltros("/obras?pagina=2#topo", filtros)).toBe(
-      "/obras?pagina=2&bairro=Centro#topo"
+      "/obras?pagina=2&bairro=uv-10#topo"
     )
   })
 
@@ -81,5 +87,45 @@ describe("comFiltros", () => {
     expect(comFiltros("/fontes", { bairro: TODOS, periodo: TODOS })).toBe(
       "/fontes"
     )
+  })
+})
+
+describe("resolverBairro", () => {
+  const BAIRROS: BairroResumo[] = [
+    { id: "uv-03", uv: 3, nome: "São Benedito", nomeLei: "SÃO BENEDITO" },
+    { id: "uv-10", uv: 10, nome: "Centro", nomeLei: "CENTRO" },
+  ]
+  const resolver = (bairro: string) =>
+    resolverBairro({ bairro, periodo: TODOS }, BAIRROS)
+
+  it("resolve Todos como seleção de todos os bairros", () => {
+    expect(resolver(TODOS)).toEqual({ tipo: "todos" })
+  })
+
+  it("resolve o ID de um bairro carregado", () => {
+    expect(resolver("uv-10")).toEqual({ tipo: "bairro", bairro: BAIRROS[1] })
+  })
+
+  it.each([
+    ["nome do bairro", "Centro"],
+    ["ID inexistente", "uv-99"],
+    ["ID sem zero à esquerda", "uv-3"],
+    ["caixa diferente", "UV-10"],
+    ["HTML", "<script>alert(1)</script>"],
+    ["texto longo", "a".repeat(80)],
+  ])("não reconhece %s", (_caso, valor) => {
+    expect(resolver(valor)).toEqual({ tipo: "nao-reconhecido" })
+  })
+
+  it("não reconhece nada quando não há bairro carregado", () => {
+    expect(resolverBairro({ bairro: "uv-10", periodo: TODOS }, [])).toEqual({
+      tipo: "nao-reconhecido",
+    })
+  })
+
+  it("ignora o período ao resolver o bairro", () => {
+    expect(
+      resolverBairro({ bairro: "uv-03", periodo: "2025" }, BAIRROS)
+    ).toMatchObject({ tipo: "bairro" })
   })
 })
