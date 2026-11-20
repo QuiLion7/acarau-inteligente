@@ -1,4 +1,7 @@
-// Filtros globais na URL (RF-00.14, DV-12). O valor só é texto aqui; o EP-01 passa a validar `bairro` contra os territórios.
+// Filtros globais na URL (RF-00.14, DV-12). `lerFiltros` só normaliza texto; `resolverBairro` valida `bairro`
+// contra os bairros carregados: o valor bruto da URL nunca é exibido nem usado como identificador.
+import type { BairroResumo } from "@/lib/territorio/artefato-schema"
+
 export const TODOS = "Todos"
 const TAMANHO_MAXIMO = 80
 
@@ -10,6 +13,11 @@ function normalizar(valor: string | null): string {
   const limpo = (valor ?? "").trim().slice(0, TAMANHO_MAXIMO).trim()
   return limpo || TODOS
 }
+
+export type SelecaoBairro =
+  | { tipo: "todos" }
+  | { tipo: "bairro"; bairro: BairroResumo }
+  | { tipo: "nao-reconhecido" }
 
 export function lerFiltros(parametros: FonteDeParametros): Filtros {
   return {
@@ -26,4 +34,14 @@ export function comFiltros(href: string, filtros: Filtros): string {
     else url.searchParams.set(nome, filtros[nome])
   }
   return `${url.pathname}${url.search}${url.hash}`
+}
+
+/** `bairro` da URL só vale se for o ID estável de um bairro carregado (`uv-NN`); qualquer outro texto não é reconhecido. */
+export function resolverBairro(
+  filtros: Filtros,
+  bairros: readonly BairroResumo[]
+): SelecaoBairro {
+  if (filtros.bairro === TODOS) return { tipo: "todos" }
+  const bairro = bairros.find((item) => item.id === filtros.bairro)
+  return bairro ? { tipo: "bairro", bairro } : { tipo: "nao-reconhecido" }
 }
