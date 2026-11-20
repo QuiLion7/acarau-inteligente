@@ -1,0 +1,55 @@
+ACARAÚ - DADOS GEOGRÁFICOS E DE DEMONSTRAÇÃO
+Inventário atualizado em 20/11/2026 (contagens lidas dos próprios arquivos).
+
+FONTES
+- Bairros (UVs da sede): Lei Municipal 2.172/2026, art. 8º, I, páginas 27 a 69 (reconstrução técnica; NÃO é arquivo oficial homologado da Prefeitura).
+- Escolas: CSV do catálogo do INEP fornecido pelo usuário.
+- Limite municipal: IPECE. Distritos e setores censitários: IBGE.
+- Ruas, rios, corpos d'água, edificações, localidades, pontos de interesse, saúde e uso do solo: OpenStreetMap (licença ODbL; manter atribuição).
+- O PDF da Lei 2.172/2026 NÃO está nesta pasta.
+
+SRC
+- Camadas próprias, IBGE e IPECE: EPSG:31984 (SIRGAS 2000 / UTM 24S).
+- Camadas do OSM (ruas, rios, corpos d'água, edificações, localidades, pontos de interesse): EPSG:4326 (WGS 84). Reprojetar, não redefinir.
+- O CSV original das escolas tem coordenadas em graus; as geometrias foram reprojetadas para EPSG:31984.
+
+ARQUIVOS PRINCIPAIS
+- acarau_completo.gpkg  -> GeoPackage com todas as camadas abaixo (14 camadas + estilos). Entrada recomendada.
+- acarau_completo.qgz   -> projeto QGIS.
+- bairros_acarau_validados (.gpkg e .shp) -> 24 UVs da sede, todas com status VALIDADO.
+- escolas_acarau (.gpkg e .shp) -> 58 escolas georreferenciadas.
+- escolas_origem_tratada.csv -> 62 registros do INEP; 58 com coordenadas_validas=True e 4 com False (sem posição; não inventar).
+- relatorio_validacao_bairros.csv -> validação das 24 UVs (vértices, geometria, área calculada x área da lei). 4 UVs sem área na lei para comparar: Açude Novo, Rodagem, Saguim, Cerâmica.
+- vertices_bairros.csv -> vértices extraídos dos memoriais.
+
+CAMADAS (shapefile e/ou acarau_completo.gpkg)
+  camada                       geometria  registros  SRC    origem   observação
+  limite_acarau                polígono         1   31984  IPECE    área 842,12 km², IBGE 2300200
+  distritos_acarau_corrigido   polígono         4   31984  IBGE     Acaraú, Aranaú, Juritianha, Lagoa do Carneiro
+  distritos_acarau             polígono       894   31984  IBGE     TODOS os distritos do Ceará (sem recorte; não usar como Acaraú)
+  setores_censitarios_acarau   polígono       181   31984  IBGE     todos de Acaraú
+  bairros_acarau_validados     polígono        24   31984  Lei      UVs da sede
+  escolas_acarau               ponto           58   31984  INEP
+  saude_acarau                 ponto            3   31984  OSM      estabelecimentos (não são dados de pacientes)
+  uso_solo_acarau              polígono        59   31984  OSM
+  ruas_acarau                  linha         3071    4326  OSM
+  rios_acarau                  linha          320    4326  OSM
+  corpos_dagua_acarau          polígono       235    4326  OSM
+  edificacoes_acarau           polígono       251    4326  OSM      cobertura parcial
+  localidades_acarau           ponto           30    4326  OSM
+  pontos_interesse_acarau      ponto           38    4326  OSM
+
+DADOS SINTÉTICOS (fictícios; não representam a situação real de Acaraú)
+- casos_saude_DEMO.csv -> 10 linhas agregadas (bairro, ano, casos).
+- obras_DEMO.csv       -> 3 obras com origem=SINTETICO.
+
+PROBLEMAS CONHECIDOS (tratar no EP-01)
+- acarau_bairros_escolas.gpkg tem registros DUPLICADOS: 47 polígonos para 24 UVs e 116 escolas para 58 códigos INEP. Não usar sem deduplicar; preferir acarau_completo.gpkg.
+- istritos_acarau_corrigido.* (nome truncado) está INCOMPLETO: falta o .shp e o .dbf tem 894 registros (cópia de distritos_acarau).
+- lagoas_acarau.* está INCOMPLETO: falta o .shp e os atributos são iguais aos de rios_acarau; não está no acarau_completo.gpkg. Não anunciar camada de lagoas.
+- PENDENTE (usuário, registrado em 20/11/2026): os dois conjuntos acima NÃO devem ser apagados; o usuário vai reexportar do QGIS e trazer as versões completas (.shp, .shx, .dbf, .prj, .cpg). Até lá, nenhuma implementação usa esses arquivos. Ao chegarem, conferir contagem, SRC e recorte municipal e atualizar este inventário.
+- A camada bairros_revisar (perímetros preliminares) citada na versão anterior deste arquivo NÃO está na pasta.
+
+AVISOS
+- Presença de arquivo não significa camada validada: a aplicação só anuncia uma camada depois de importada e validada (RN-007 da master spec).
+- Presença de coordenadas não comprova precisão posicional; validação em mapa é recomendada.

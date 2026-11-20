@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+.env*
+!.env.example
+coverage
+dados
+docs
+sdd
+.claude
+tests
+test-results
+playwright-report
+*.md
