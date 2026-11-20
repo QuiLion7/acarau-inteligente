@@ -64,14 +64,14 @@ describe("MenuModulos", () => {
 
   it("preserva os filtros bairro e período nos links dos módulos", () => {
     useSearchParams.mockReturnValue(
-      new URLSearchParams("bairro=Centro&periodo=2025")
+      new URLSearchParams("bairro=uv-10&periodo=2025")
     )
 
     render(<MenuModulos />)
 
     expect(screen.getByRole("link", { name: "Obras" })).toHaveAttribute(
       "href",
-      "/obras?bairro=Centro&periodo=2025"
+      "/obras?bairro=uv-10&periodo=2025"
     )
   })
 

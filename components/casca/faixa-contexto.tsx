@@ -7,15 +7,35 @@ import {
   MUNICIPIO,
   RECORTE_TERRITORIAL,
 } from "@/lib/config/textos-demonstracao"
-import { comFiltros, lerFiltros } from "@/lib/filtros/filtros-url"
+import {
+  comFiltros,
+  lerFiltros,
+  resolverBairro,
+  TODOS,
+  type SelecaoBairro,
+} from "@/lib/filtros/filtros-url"
+import type { BairroResumo } from "@/lib/territorio/artefato-schema"
+
+const NAO_RECONHECIDO = "Não reconhecido"
+
+// Nunca devolve o texto bruto da URL: bairro desconhecido vira "Não reconhecido" (RF-01.24).
+function rotuloDoBairro(selecao: SelecaoBairro): string {
+  if (selecao.tipo === "bairro") return selecao.bairro.nome
+  return selecao.tipo === "todos" ? TODOS : NAO_RECONHECIDO
+}
 
 // Mostra o contexto da consulta e os filtros globais lidos da URL (RF-00.13, RF-00.14).
-export function FaixaContexto() {
+export function FaixaContexto({
+  bairros,
+}: {
+  bairros: readonly BairroResumo[]
+}) {
   const filtros = lerFiltros(useSearchParams())
+  const selecao = resolverBairro(filtros, bairros)
   const contexto = [
     { rotulo: "Município", valor: MUNICIPIO },
     { rotulo: "Recorte", valor: RECORTE_TERRITORIAL },
-    { rotulo: "Bairro", valor: filtros.bairro },
+    { rotulo: "Bairro", valor: rotuloDoBairro(selecao) },
     { rotulo: "Período", valor: filtros.periodo },
   ]
 

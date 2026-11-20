@@ -13,6 +13,7 @@ import {
   NOME_PRODUTO,
   SELO_DEMONSTRACAO,
 } from "@/lib/config/textos-demonstracao"
+import { listarResumoBairros } from "@/lib/server/territorio/territorio-repositorio"
 import { cn } from "@/lib/utils"
 
 const roboto = Roboto({ subsets: ["latin"], variable: "--font-sans" })
@@ -50,7 +51,7 @@ export default function RootLayout({
           <PularParaConteudo />
           <Cabecalho />
           <Suspense fallback={null}>
-            <FaixaContexto />
+            <FaixaContexto bairros={listarResumoBairros()} />
           </Suspense>
           <main
             id="conteudo"
