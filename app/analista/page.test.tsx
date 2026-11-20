@@ -1,0 +1,54 @@
+import { render, screen } from "@testing-library/react"
+
+import PaginaAnalista from "@/app/analista/page"
+import type { SessaoValida } from "@/lib/auth/papeis"
+import { exigirPapelNaPagina } from "@/lib/server/auth/dal"
+
+jest.mock("@/lib/server/auth/dal", () => ({ exigirPapelNaPagina: jest.fn() }))
+
+const SESSAO: SessaoValida = {
+  usuario: "analista",
+  nome: "Analista Demo",
+  papel: "analista",
+}
+
+describe("página da área do analista", () => {
+  it("exige o papel de analista para o caminho /analista", async () => {
+    jest
+      .mocked(exigirPapelNaPagina)
+      .mockResolvedValue({ tipo: "ok", sessao: SESSAO })
+
+    await PaginaAnalista()
+
+    expect(exigirPapelNaPagina).toHaveBeenCalledWith("analista", "/analista")
+  })
+
+  it("identifica a sessão, sem ações", async () => {
+    jest
+      .mocked(exigirPapelNaPagina)
+      .mockResolvedValue({ tipo: "ok", sessao: SESSAO })
+
+    render(await PaginaAnalista())
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Área do analista" })
+    ).toBeVisible()
+    expect(
+      screen.getByText("Você entrou como Analista Demo (Analista).")
+    ).toBeVisible()
+    expect(screen.queryByRole("button")).toBeNull()
+  })
+
+  it("mostra o estado sem permissão quando o papel não basta", async () => {
+    jest
+      .mocked(exigirPapelNaPagina)
+      .mockResolvedValue({ tipo: "sem-permissao" })
+
+    render(await PaginaAnalista())
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Sem permissão" })
+    ).toBeVisible()
+    expect(screen.queryByText(/Você entrou como/)).toBeNull()
+  })
+})

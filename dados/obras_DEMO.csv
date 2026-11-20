@@ -1,0 +1,4 @@
+id,titulo,categoria,status,descricao,origem
+DEMO-001,Requalificacao de via demonstrativa,pavimentacao,planejada,Cenario ficticio para demonstracao,SINTETICO
+DEMO-002,Manutencao de escola demonstrativa,educacao,em_andamento,Cenario ficticio para demonstracao,SINTETICO
+DEMO-003,Melhoria de drenagem demonstrativa,drenagem,concluida,Cenario ficticio para demonstracao,SINTETICO
