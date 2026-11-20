@@ -96,3 +96,9 @@
     @apply font-sans;
   }
 }
+
+/* O link da atribuição do MapLibre vem sem sublinhado e reprova o axe (link-in-text-block): a atribuição do OSM
+   precisa ficar visível e o link distinguível sem depender de cor. */
+.maplibregl-map .maplibregl-ctrl-attrib-inner a {
+  text-decoration: underline;
+}
