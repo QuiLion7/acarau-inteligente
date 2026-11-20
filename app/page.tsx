@@ -1,13 +1,18 @@
 import Link from "next/link"
 
+import { MapaResumo } from "@/components/territorio/mapa-resumo"
 import { MODULOS } from "@/lib/config/modulos"
 import {
   DESCRICAO_PRODUTO,
   NOME_PRODUTO,
 } from "@/lib/config/textos-demonstracao"
+import { obterDadosMapaResumo } from "@/lib/server/territorio/territorio-repositorio"
 
-// Início sem nenhum número de dado (RF-00.20): só apresenta a demo e leva aos módulos.
+// Início sem nenhum número de dado (RF-00.20): apresenta a demo, mostra o mapa resumido dos bairros (RF-01.25) e
+// leva aos módulos.
 export default function PaginaInicial() {
+  const { bairros, limite } = obterDadosMapaResumo()
+
   return (
     <div className="flex flex-col gap-8">
       <section className="flex max-w-3xl flex-col gap-3">
@@ -26,6 +31,16 @@ export default function PaginaInicial() {
           </Link>
           .
         </p>
+      </section>
+
+      <section aria-labelledby="mapa-resumo" className="flex flex-col gap-3">
+        <h2 id="mapa-resumo" className="text-xl font-semibold">
+          Mapa dos bairros da sede
+        </h2>
+        <p className="max-w-3xl text-muted-foreground">
+          Clique em um bairro para abrir o Território com ele selecionado.
+        </p>
+        <MapaResumo bairros={bairros} limite={limite} />
       </section>
 
       <section aria-labelledby="atalhos" className="flex flex-col gap-3">
