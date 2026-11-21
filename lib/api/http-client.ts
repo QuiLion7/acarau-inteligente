@@ -42,6 +42,19 @@ async function erroDaResposta(resposta: Response): Promise<ApiError> {
   })
 }
 
+// `FormData` segue como está e sem `Content-Type`: o navegador o define com o boundary do multipart (DV-30).
+function montarCorpo(corpo: unknown): {
+  headers: HeadersInit | undefined
+  body: BodyInit | undefined
+} {
+  if (corpo === undefined) return { headers: undefined, body: undefined }
+  if (corpo instanceof FormData) return { headers: undefined, body: corpo }
+  return {
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(corpo),
+  }
+}
+
 // Chamada ao próprio app (mesma origem, cookie de sessão junto). Resposta fora de 2xx vira `ApiError`.
 // O navegador manda o `Origin` que o servidor confere nas escritas (seguranca.md §4).
 export async function requisitar(
@@ -53,11 +66,7 @@ export async function requisitar(
     resposta = await fetch(caminho, {
       method: metodo,
       credentials: "same-origin",
-      headers:
-        corpo === undefined
-          ? undefined
-          : { "Content-Type": "application/json" },
-      body: corpo === undefined ? undefined : JSON.stringify(corpo),
+      ...montarCorpo(corpo),
     })
   } catch (erro) {
     throw new ApiError("SEM_CONEXAO", MENSAGEM_SEM_CONEXAO, { cause: erro })

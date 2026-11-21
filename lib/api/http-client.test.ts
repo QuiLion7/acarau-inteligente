@@ -54,6 +54,18 @@ describe("requisitar", () => {
     )
   })
 
+  it("envia FormData como veio, sem Content-Type manual (o navegador define o boundary)", async () => {
+    fetchSimulado.mockResolvedValue(new Response(null, { status: 201 }))
+    const formulario = new FormData()
+    formulario.append("dados", "{}")
+
+    await requisitar("/api/importacoes", { metodo: "POST", corpo: formulario })
+
+    const [, opcoes] = fetchSimulado.mock.calls[0] ?? []
+    expect(opcoes?.body).toBe(formulario)
+    expect(opcoes?.headers).toBeUndefined()
+  })
+
   it("usa GET por padrão", async () => {
     fetchSimulado.mockResolvedValue(new Response(null, { status: 200 }))
 
