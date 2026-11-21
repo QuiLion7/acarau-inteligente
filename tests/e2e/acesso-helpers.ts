@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import { request as playwrightRequest, type Page } from "@playwright/test"
 
 import { CONTAS_DE_TESTE } from "./contas-teste"
 import { expect, test } from "./fixtures"
@@ -34,4 +34,28 @@ export async function entrarPelaApi(
     headers: { origin: origem ?? "" },
   })
   expect(resposta.status()).toBe(200)
+}
+
+// Reinicia a demonstração como administrador, por um contexto de API à parte: o cookie do administrador não vai para
+// o navegador do teste, que segue visitante (ou entra com a conta que o teste escolher). O `acarau_e2e` acumula
+// datasets entre execuções e o hash do conteúdo é único, então todo spec que grava dados começa por aqui (DV-32).
+export async function reiniciarDemo(): Promise<void> {
+  const origem = test.info().project.use.baseURL ?? ""
+  const api = await playwrightRequest.newContext({ baseURL: origem })
+  try {
+    const login = await api.post("/api/auth/entrar", {
+      data: {
+        usuario: ADMINISTRADOR.usuario,
+        senha: ADMINISTRADOR.senha,
+      },
+      headers: { origin: origem },
+    })
+    expect(login.status()).toBe(200)
+    const reset = await api.post("/api/demo/reset", {
+      headers: { origin: origem },
+    })
+    expect(reset.status()).toBe(204)
+  } finally {
+    await api.dispose()
+  }
 }
