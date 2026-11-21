@@ -3,7 +3,8 @@
 import type { BairroResumo } from "./artefato-schema"
 import { normalizarParaBusca } from "./nome-bairro"
 
-const CODIGO_UV = /^(?:uv[\s-]*)?(\d{1,2})$/
+// Exportado para o EP-02 distinguir código de UV de trecho de nome ao reconhecer bairro no CSV.
+export const CODIGO_UV = /^(?:uv[\s-]*)?(\d{1,2})$/
 
 /** Termo vazio devolve todos; "3", "uv 3" e "uv-03" acham a UV 3; o resto é trecho do nome, sem acento nem caixa. */
 export function buscarBairros(

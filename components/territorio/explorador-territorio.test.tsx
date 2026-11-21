@@ -101,6 +101,41 @@ describe("ExploradorTerritorio", () => {
     ).toBeInTheDocument()
   })
 
+  describe("foco na ficha (RF-02.46)", () => {
+    // O router real atualizaria a URL; o double repassa o `replace` ao `useSearchParams` para a ficha abrir.
+    function acompanharUrlDoReplace() {
+      replace.mockImplementation((destino: string) => {
+        const [, consulta = ""] = destino.split("?")
+        useSearchParams.mockReturnValue(new URLSearchParams(consulta))
+      })
+    }
+
+    it("escolher o bairro na lista com Enter leva o foco ao título da ficha", async () => {
+      const usuario = userEvent.setup()
+      await renderizar()
+      acompanharUrlDoReplace()
+
+      within(screen.getByRole("tabpanel"))
+        .getByRole("button", { name: /Centro/ })
+        .focus()
+      await usuario.keyboard("{Enter}")
+
+      expect(screen.getByRole("heading", { name: "Centro" })).toHaveFocus()
+    })
+
+    it("escolher o bairro pelo mapa não tira o foco de onde estava", async () => {
+      const usuario = userEvent.setup()
+      await renderizar()
+      acompanharUrlDoReplace()
+
+      await usuario.click(
+        screen.getByRole("button", { name: "selecionar bairro Centro" })
+      )
+
+      expect(screen.getByRole("heading", { name: "Centro" })).not.toHaveFocus()
+    })
+  })
+
   it("selecionar pela tabela faz o mesmo", async () => {
     const usuario = userEvent.setup()
     await renderizar()

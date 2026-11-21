@@ -1,13 +1,13 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
 import { ControleCamadas } from "@/components/territorio/controle-camadas"
 import { FichaBairro } from "@/components/territorio/ficha-bairro"
 import { LegendaMapa } from "@/components/territorio/legenda-mapa"
 import { ListaBairros } from "@/components/territorio/lista-bairros"
+import { MapaTerritorioDinamico } from "@/components/territorio/mapa-territorio-dinamico"
 import { PainelEscolas } from "@/components/territorio/painel-escolas"
 import { QuadroQualidadeEscolas } from "@/components/territorio/quadro-qualidade-escolas"
 import { TabelaBairros } from "@/components/territorio/tabela-bairros"
@@ -26,21 +26,6 @@ import {
   type IdCamadaControlavel,
 } from "@/lib/territorio/estilo-mapa"
 import { contarMarcadores } from "@/lib/territorio/filtro-escolas"
-
-// MapLibre só roda no navegador e pesa: fica fora do carregamento inicial (react-next §8). O módulo só se importa
-// em Client Component com `ssr: false`.
-const MapaTerritorio = dynamic(
-  () =>
-    import("@/components/territorio/mapa-territorio").then(
-      (modulo) => modulo.MapaTerritorio
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <EstadoInterface tipo="carregando" titulo="Carregando o mapa" />
-    ),
-  }
-)
 
 // O controle só oferece camada que o mapa desenha e que a carga gravou (RN-005, CA-01.06).
 const CAMADAS_DO_CONTROLE = CAMADAS_CONTROLAVEIS.filter(({ id }) =>
@@ -92,6 +77,8 @@ export function ExploradorTerritorio({
   )
   const escolaAberta =
     escolas.find(({ codigoInep }) => codigoInep === codigoEscolaAberta) ?? null
+  // Seleção pela lista tira o botão da tela; o foco vai ao título da ficha quando ela monta (RF-02.46).
+  const focoNaFichaPendenteRef = useRef(false)
 
   function handleAlternarCamada(id: IdCamadaControlavel) {
     setCamadasLigadas((atuais) => {
@@ -104,6 +91,17 @@ export function ExploradorTerritorio({
   function handleSelecionar(idBairro: string) {
     selecionar(idBairro)
     setAba("ficha")
+  }
+
+  function handleSelecionarDaLista(idBairro: string) {
+    focoNaFichaPendenteRef.current = true
+    handleSelecionar(idBairro)
+  }
+
+  function focarTituloDaFicha(titulo: HTMLHeadingElement | null) {
+    if (!titulo || !focoNaFichaPendenteRef.current) return
+    focoNaFichaPendenteRef.current = false
+    titulo.focus()
   }
 
   function handleAbrirEscola(codigoInep: string) {
@@ -126,7 +124,7 @@ export function ExploradorTerritorio({
           <h2 id="titulo-mapa" className="sr-only">
             Mapa dos bairros
           </h2>
-          <MapaTerritorio
+          <MapaTerritorioDinamico
             bairros={bairros}
             limite={limite}
             escolas={escolas}
@@ -164,13 +162,16 @@ export function ExploradorTerritorio({
             <ListaBairros
               bairros={bairros}
               selecionadoId={selecionado?.id ?? null}
-              onSelecionar={handleSelecionar}
+              onSelecionar={handleSelecionarDaLista}
             />
           </TabsContent>
           <TabsContent value="ficha" className="pt-2">
             {selecionado ? (
               <div className="flex flex-col gap-4">
-                <FichaBairro bairro={selecionado} />
+                <FichaBairro
+                  bairro={selecionado}
+                  tituloRef={focarTituloDaFicha}
+                />
                 <Button
                   variant="outline"
                   className="self-start"

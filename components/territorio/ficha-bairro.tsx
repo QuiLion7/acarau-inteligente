@@ -1,3 +1,5 @@
+import type { Ref } from "react"
+
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { TEXTOS_TERRITORIO } from "@/lib/config/textos-territorio"
 import type { Bairro } from "@/lib/territorio/artefato-schema"
@@ -6,13 +8,24 @@ import { flexionar, formatarAreaM2 } from "@/lib/territorio/formato"
 const AREA_NAO_INFORMADA_NA_LEI = "Não informada na lei"
 
 // Texto puro: nada dos dados vira HTML (RF-01.18). Escola ausente nunca vira "0" sem a ressalva da base (RN-01.04).
-export function FichaBairro({ bairro }: { bairro: Bairro }) {
+type FichaBairroProps = {
+  bairro: Bairro
+  // Quem abre a ficha pode levar o foco ao título (RF-02.46).
+  tituloRef?: Ref<HTMLHeadingElement>
+}
+
+export function FichaBairro({ bairro, tituloRef }: FichaBairroProps) {
   return (
     <article
       aria-labelledby="titulo-ficha-bairro"
       className="flex flex-col gap-4"
     >
-      <h2 id="titulo-ficha-bairro" className="text-xl font-semibold">
+      <h2
+        id="titulo-ficha-bairro"
+        ref={tituloRef}
+        tabIndex={-1}
+        className="rounded-sm text-xl font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
         {bairro.nome}
       </h2>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
