@@ -19,10 +19,15 @@ import { origemPermitida } from "@/lib/server/http/origem"
 import { obterRequestId } from "@/lib/server/http/request-id"
 import { log } from "@/lib/server/log"
 
+// Segmentos dinâmicos da rota (`[hash]`, `[id]`): o Next 16 entrega `params` como Promise no 2º argumento do handler.
+export type ParametrosDaRota = Record<string, string | string[] | undefined>
+type ContextoDoNext = { params: Promise<ParametrosDaRota> }
+
 export type ContextoRota = {
   requestId: string
   sessao: SessaoValida | null
   agora: Date
+  parametros: () => Promise<ParametrosDaRota>
 }
 
 export type OpcoesRota = { papel?: PapelRestrito; escrita?: boolean }
@@ -73,7 +78,7 @@ function recusarAcesso(
 
 async function exigirSessao(
   request: NextRequest,
-  contexto: Omit<ContextoRota, "sessao">,
+  contexto: Pick<ContextoRota, "requestId" | "agora">,
   papelMinimo: PapelRestrito,
   dependencias: DependenciasRota
 ): Promise<SessaoValida> {
@@ -113,8 +118,11 @@ export function criarRotaApi(dependencias: DependenciasRota) {
   return function rotaApi(
     manipulador: ManipuladorRota,
     opcoes: OpcoesRota = {}
-  ): (request: NextRequest) => Promise<Response> {
-    return async (request) => {
+  ): (
+    request: NextRequest,
+    contextoDoNext?: ContextoDoNext
+  ) => Promise<Response> {
+    return async (request, contextoDoNext) => {
       const requestId = obterRequestId(request.headers)
       const agora = dependencias.agora()
       try {
@@ -136,6 +144,7 @@ export function criarRotaApi(dependencias: DependenciasRota) {
           requestId,
           sessao,
           agora,
+          parametros: async () => (await contextoDoNext?.params) ?? {},
         })
         return comCabecalhosPadrao(resposta, requestId)
       } catch (erro) {

@@ -7,7 +7,10 @@ test.describe("fontes e limitações", () => {
     await page.goto("/fontes")
 
     const conteudo = page.locator("#conteudo")
-    const cartoes = conteudo.getByRole("article")
+    // Os cartões das camadas são os que têm etiqueta; os datasets publicados (PA-02.04) vêm em seção própria.
+    const cartoes = conteudo
+      .getByRole("article")
+      .filter({ hasText: "Etiqueta:" })
     await expect(cartoes).toHaveCount(4)
     await expect(cartoes.getByRole("heading", { level: 2 })).toHaveText([
       "Bairros (Unidades de Vizinhança)",

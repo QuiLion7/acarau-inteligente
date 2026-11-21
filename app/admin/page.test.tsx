@@ -5,6 +5,10 @@ import type { SessaoValida } from "@/lib/auth/papeis"
 import { exigirPapelNaPagina } from "@/lib/server/auth/dal"
 
 jest.mock("@/lib/server/auth/dal", () => ({ exigirPapelNaPagina: jest.fn() }))
+// O botão é do cliente e tem teste próprio: aqui só importa o que a página decide e mostra.
+jest.mock("@/app/admin/components/reiniciar-demo", () => ({
+  ReiniciarDemo: () => <button>Reiniciar a demonstração (double)</button>,
+}))
 
 const SESSAO: SessaoValida = {
   usuario: "admin",
@@ -23,7 +27,7 @@ describe("página de administração", () => {
     expect(exigirPapelNaPagina).toHaveBeenCalledWith("administrador", "/admin")
   })
 
-  it("identifica a sessão, sem ações", async () => {
+  it("identifica a sessão e oferece reiniciar a demonstração (PA-02.03)", async () => {
     jest
       .mocked(exigirPapelNaPagina)
       .mockResolvedValue({ tipo: "ok", sessao: SESSAO })
@@ -36,7 +40,9 @@ describe("página de administração", () => {
     expect(
       screen.getByText("Você entrou como Administrador Demo (Administrador).")
     ).toBeVisible()
-    expect(screen.queryByRole("button")).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Reiniciar a demonstração (double)" })
+    ).toBeVisible()
   })
 
   it("mostra o estado sem permissão para quem não é administrador", async () => {
@@ -49,5 +55,6 @@ describe("página de administração", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Sem permissão" })
     ).toBeVisible()
+    expect(screen.queryByRole("button")).toBeNull()
   })
 })

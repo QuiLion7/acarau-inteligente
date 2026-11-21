@@ -17,6 +17,19 @@ const CATALOGO = {
     mensagem: "A origem da requisição não é permitida.",
   },
   NAO_ENCONTRADO: { status: 404, mensagem: "Recurso não encontrado." },
+  CONTEUDO_JA_IMPORTADO: {
+    status: 409,
+    mensagem: "Este arquivo já foi importado.",
+  },
+  ARQUIVO_GRANDE_DEMAIS: {
+    status: 413,
+    mensagem: "O arquivo é maior que o limite de 5 MB.",
+  },
+  IMPORTACAO_INVALIDA: {
+    status: 422,
+    mensagem:
+      "A importação não pôde ser confirmada: o arquivo ou as escolhas feitas não passam na validação.",
+  },
   LOGIN_BLOQUEADO: {
     status: 429,
     mensagem: "Muitas tentativas. Tente novamente mais tarde.",

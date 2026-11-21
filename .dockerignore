@@ -7,6 +7,7 @@ node_modules
 coverage
 dados
 !dados/gerados
+!dados/sinteticos/saude-pre-carregado_DEMO.csv
 docs
 sdd
 .claude

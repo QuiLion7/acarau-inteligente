@@ -73,12 +73,14 @@ describe("scripts/migrar.mjs", () => {
     expect(primeira.status).toBe(0)
     expect(JSON.parse(primeira.stdout)).toMatchObject({
       evento: "db.migracao",
-      aplicadas: 1,
+      aplicadas: 2,
     })
     expect(depoisDaPrimeira.colunas).toEqual(
       expect.arrayContaining([
         "sessao.token_hash:text",
         "tentativa_login.ocorrida_em:timestamp with time zone",
+        "dataset_versao.hash_conteudo:text",
+        "dataset_linha.bairro_id:text",
       ])
     )
     expect(segunda.status).toBe(0)

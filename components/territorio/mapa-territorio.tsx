@@ -3,15 +3,23 @@
 import "maplibre-gl/dist/maplibre-gl.css"
 
 import {
+  type GeoJSONSource,
   GPUInitializationError,
   Map as MapaMapLibre,
   setWorkerUrl,
-  type MapGeoJSONFeature,
 } from "maplibre-gl"
 import { useEffect, useEffectEvent, useRef, useState } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
 import { AvisoMapaBase } from "@/components/territorio/aviso-mapa-base"
+import {
+  aoCarregarMapa,
+  marcarEstado,
+  registrarEventosDeBairro,
+  registrarEventosDeEscola,
+  registrarEventosDoCoropletico,
+  registrarEventosDoFundo,
+} from "@/components/territorio/eventos-mapa"
 import { Button } from "@/components/ui/button"
 import type {
   Bairro,
@@ -19,15 +27,12 @@ import type {
   LimiteMunicipal,
 } from "@/lib/territorio/artefato-schema"
 import {
+  bairrosParaGeoJson,
   calcularEnquadramento,
-  CAMADAS_MAPA,
-  desenharIconeEscola,
-  ehErroDoFundo,
-  ESTADO_BAIRRO,
   FONTES_MAPA,
-  ICONES_ESCOLA,
   montarEstilo,
   visibilidadePorCamadaDoEstilo,
+  type DadosCoropletico,
   type IdCamadaControlavel,
 } from "@/lib/territorio/estilo-mapa"
 
@@ -37,7 +42,6 @@ setWorkerUrl(
   new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString()
 )
 
-const MARCA_MAPA_INTERATIVO = "territorio:mapa-interativo"
 const PREENCHIMENTO_ENQUADRAMENTO_PX = 24
 
 // Camadas do mapa resumo do Início: bairros e limite, sem escolas nem controle (TechSpec EP-01 §2).
@@ -45,6 +49,11 @@ const CAMADAS_DO_RESUMO: ReadonlySet<IdCamadaControlavel> = new Set([
   "bairros",
   "limite-municipal",
 ])
+
+const ROTULO_DO_MODO = {
+  completo: "Mapa dos bairros de Acaraú",
+  resumo: "Mapa resumido dos bairros de Acaraú",
+} as const
 
 const CLASSE_ALTURA = {
   completo: "h-96 lg:h-[32rem]",
@@ -62,29 +71,14 @@ type MapaTerritorioProps = {
   selecionadoId?: string | null
   camadasLigadas?: ReadonlySet<IdCamadaControlavel>
   onAbrirEscola?: (codigoInep: string) => void
-}
-
-function propriedadeTexto(
-  feature: MapGeoJSONFeature | undefined,
-  nome: string
-): string | null {
-  const valor: unknown = feature?.properties?.[nome]
-  return typeof valor === "string" ? valor : null
-}
-
-function registrarIconesDeEscola(mapa: MapaMapLibre) {
-  for (const icone of Object.values(ICONES_ESCOLA)) {
-    mapa.addImage(icone.imagem, desenharIconeEscola(icone))
-  }
-}
-
-function marcarEstado(
-  mapa: MapaMapLibre,
-  idBairro: string | null,
-  estado: Partial<Record<keyof typeof ESTADO_BAIRRO, boolean>>
-) {
-  if (idBairro === null) return
-  mapa.setFeatureState({ source: FONTES_MAPA.bairros, id: idBairro }, estado)
+  /**
+   * Coroplético da Saúde (RF-02.31): situação e classe por bairro no período. Presente desde a montagem, o mapa leva as
+   * camadas das classes e cada troca de valor só atualiza os dados (`setData`), sem recriar o mapa. Ausente, o mapa é
+   * exatamente o do Território.
+   */
+  coropletico?: DadosCoropletico
+  /** Nome acessível da região do mapa, quando o padrão do modo não descreve o uso. */
+  rotulo?: string
 }
 
 // Mapa MapLibre sem wrapper (DV-20). O efeito sincroniza o React com um sistema externo (o canvas WebGL): cria o
@@ -98,6 +92,8 @@ export function MapaTerritorio({
   selecionadoId = null,
   camadasLigadas = CAMADAS_DO_RESUMO,
   onAbrirEscola,
+  coropletico,
+  rotulo,
 }: MapaTerritorioProps) {
   const recipienteRef = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<MapaMapLibre | null>(null)
@@ -130,7 +126,19 @@ export function MapaTerritorio({
   )
   // Os dados são fixos na vida da tela, mas cada `router.replace` traz objetos novos do servidor: ler pelo Effect
   // Event evita recriar o mapa (e perder o enquadramento) a cada seleção.
-  const dadosDoMapa = useEffectEvent(() => ({ bairros, limite, escolas }))
+  const dadosDoMapa = useEffectEvent(() => ({
+    bairros,
+    limite,
+    escolas,
+    coropletico,
+  }))
+  const aplicarCoropletico = useEffectEvent(async (mapa: MapaMapLibre) => {
+    const fonte = mapa.getSource<GeoJSONSource>(FONTES_MAPA.bairros)
+    if (!coropletico || !fonte) return
+    await fonte.setData(bairrosParaGeoJson(dadosDoMapa().bairros, coropletico))
+    // O destaque do bairro selecionado é estado do mapa: reaplicado depois de os dados serem trocados.
+    aplicarSelecao(mapa)
+  })
 
   useEffect(() => {
     const recipiente = recipienteRef.current
@@ -155,59 +163,24 @@ export function MapaTerritorio({
       return
     }
     mapaRef.current = mapa
-    let hoverId: string | null = null
 
-    // Com `error` escutado o MapLibre não loga: o fundo vira aviso (RF-01.10) e o resto, estado de erro.
-    mapa.on("error", (evento) => {
-      if (ehErroDoFundo(evento)) {
-        setFundoIndisponivel(true)
-        return
-      }
-      setTeveErro(true)
+    registrarEventosDoFundo(mapa, {
+      aoFundoIndisponivel: () => setFundoIndisponivel(true),
+      aoFalhar: () => setTeveErro(true),
     })
-    mapa.on("style.load", () => registrarIconesDeEscola(mapa))
-    mapa.on("load", () => {
+    registrarEventosDeBairro(mapa, {
+      aoSelecionar: (idBairro) => selecionar(idBairro),
+    })
+    registrarEventosDeEscola(mapa, {
+      aoAbrir: (codigoInep) => abrirEscola(codigoInep),
+    })
+    if (dados.coropletico) registrarEventosDoCoropletico(mapa)
+    aoCarregarMapa(mapa, recipiente, () => {
       prontoRef.current = true
-      performance.mark(MARCA_MAPA_INTERATIVO)
       aplicarCamadas(mapa)
       aplicarSelecao(mapa)
-      // Gancho dos testes E2E: o clique no mapa precisa do pixel de um ponto geográfico (TechSpec §11).
-      recipiente.dataset.mapaPronto = "true"
-      Object.assign(recipiente, { mapa })
-    })
-    mapa.on("mousemove", CAMADAS_MAPA.bairrosPreenchimento, (evento) => {
-      const id = propriedadeTexto(evento.features?.[0], "id")
-      if (id === hoverId) return
-      marcarEstado(mapa, hoverId, { hover: false })
-      marcarEstado(mapa, id, { hover: true })
-      hoverId = id
-      mapa.getCanvas().style.cursor = "pointer"
-    })
-    mapa.on("mouseleave", CAMADAS_MAPA.bairrosPreenchimento, () => {
-      marcarEstado(mapa, hoverId, { hover: false })
-      hoverId = null
-      mapa.getCanvas().style.cursor = ""
-    })
-    mapa.on("click", CAMADAS_MAPA.bairrosPreenchimento, (evento) => {
-      // Marcador de escola sobre o bairro: o clique é da escola, não do bairro.
-      if (
-        mapa.queryRenderedFeatures(evento.point, {
-          layers: [CAMADAS_MAPA.escolas],
-        }).length > 0
-      )
-        return
-      const id = propriedadeTexto(evento.features?.[0], "id")
-      if (id !== null) selecionar(id)
-    })
-    mapa.on("click", CAMADAS_MAPA.escolas, (evento) => {
-      const codigo = propriedadeTexto(evento.features?.[0], "codigoInep")
-      if (codigo !== null) abrirEscola(codigo)
-    })
-    mapa.on("mouseenter", CAMADAS_MAPA.escolas, () => {
-      mapa.getCanvas().style.cursor = "pointer"
-    })
-    mapa.on("mouseleave", CAMADAS_MAPA.escolas, () => {
-      mapa.getCanvas().style.cursor = ""
+      // Os dados do estilo são os da montagem: se o período mudou antes do `load`, a troca é aplicada agora.
+      void aplicarCoropletico(mapa)
     })
 
     return () => {
@@ -229,6 +202,11 @@ export function MapaTerritorio({
     const mapa = mapaRef.current
     if (mapa && prontoRef.current) aplicarCamadas(mapa)
   }, [camadasLigadas])
+
+  useEffect(() => {
+    const mapa = mapaRef.current
+    if (mapa && prontoRef.current) void aplicarCoropletico(mapa)
+  }, [coropletico])
 
   if (teveErro) {
     return (
@@ -257,11 +235,7 @@ export function MapaTerritorio({
       <div
         ref={recipienteRef}
         role="region"
-        aria-label={
-          modo === "resumo"
-            ? "Mapa resumido dos bairros de Acaraú"
-            : "Mapa dos bairros de Acaraú"
-        }
+        aria-label={rotulo ?? ROTULO_DO_MODO[modo]}
         className={`${CLASSE_ALTURA[modo]} w-full overflow-hidden rounded-lg border`}
       />
     </div>

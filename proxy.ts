@@ -4,7 +4,13 @@ import { NOME_COOKIE_SESSAO } from "@/lib/auth/nome-cookie-sessao"
 import { HEADER_REQUEST_ID } from "@/lib/server/http/erro-api"
 import { obterRequestId } from "@/lib/server/http/request-id"
 
-const AREAS_RESTRITAS = ["/analista", "/admin"]
+// `/saude/importar` e `/saude/datasets` são do analista dentro do módulo público Saúde: sem cookie, o login diz que a área é restrita.
+const AREAS_RESTRITAS = [
+  "/analista",
+  "/admin",
+  "/saude/importar",
+  "/saude/datasets",
+]
 
 function ehAreaRestrita(caminho: string): boolean {
   return AREAS_RESTRITAS.some(

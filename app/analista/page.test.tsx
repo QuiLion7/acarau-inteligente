@@ -23,7 +23,7 @@ describe("página da área do analista", () => {
     expect(exigirPapelNaPagina).toHaveBeenCalledWith("analista", "/analista")
   })
 
-  it("identifica a sessão, sem ações", async () => {
+  it("identifica a sessão e aponta para Importar CSV e Datasets na Saúde (PA-02.02)", async () => {
     jest
       .mocked(exigirPapelNaPagina)
       .mockResolvedValue({ tipo: "ok", sessao: SESSAO })
@@ -36,6 +36,14 @@ describe("página da área do analista", () => {
     expect(
       screen.getByText("Você entrou como Analista Demo (Analista).")
     ).toBeVisible()
+    expect(screen.getByRole("link", { name: "Importar CSV" })).toHaveAttribute(
+      "href",
+      "/saude/importar"
+    )
+    expect(screen.getByRole("link", { name: "Datasets" })).toHaveAttribute(
+      "href",
+      "/saude/datasets"
+    )
     expect(screen.queryByRole("button")).toBeNull()
   })
 

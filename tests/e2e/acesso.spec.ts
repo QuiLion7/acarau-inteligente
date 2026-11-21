@@ -56,6 +56,40 @@ test.describe("acesso por papel", () => {
   })
 })
 
+test.describe("operações nas áreas restritas (PA-02.02, PA-02.03)", () => {
+  test("a área do analista leva a Importar CSV e a Datasets, e a administração oferece o reinício da demonstração", async ({
+    page,
+  }) => {
+    await entrarPelaInterface(page, ADMINISTRADOR)
+
+    await page.goto("/analista")
+    await expect(
+      page.getByRole("link", { name: "Importar CSV" })
+    ).toHaveAttribute("href", "/saude/importar")
+    await expect(page.getByRole("link", { name: "Datasets" })).toHaveAttribute(
+      "href",
+      "/saude/datasets"
+    )
+
+    await page.goto("/admin")
+    await expect(
+      page.getByRole("button", { name: "Reiniciar a demonstração" })
+    ).toBeVisible()
+  })
+
+  test("o analista não vê o reinício: a administração lhe dá sem permissão", async ({
+    page,
+  }) => {
+    await entrarPelaInterface(page, ANALISTA)
+
+    await page.goto("/admin")
+
+    await expect(
+      page.getByRole("button", { name: "Reiniciar a demonstração" })
+    ).toHaveCount(0)
+  })
+})
+
 test.describe("retorno depois do login", () => {
   test("o visitante que abre /analista vai ao login com o aviso e volta à área depois de entrar", async ({
     page,

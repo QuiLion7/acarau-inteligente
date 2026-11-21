@@ -23,10 +23,22 @@ export const CAMADAS_MAPA = {
   fundoOsm: "mapa-base",
   limite: "limite-linha",
   bairrosPreenchimento: "bairros-preenchimento",
+  bairrosCoropletico: "bairros-coropletico",
+  bairrosZeroLinha: "bairros-zero-linha",
+  bairrosSemDados: "bairros-sem-dados",
   bairrosLinha: "bairros-linha",
   bairrosSelecao: "bairros-selecao",
   escolas: "escolas-marcadores",
 } as const
+
+/** Paleta sequencial do coroplético (TechSpec EP-02 §4.5), do claro ao escuro; a legenda usa as mesmas cores. */
+export const CORES_COROPLETICO = [
+  "#deebf7",
+  "#9ecae1",
+  "#6baed6",
+  "#3182bd",
+  "#08519c",
+] as const
 
 /** Estados de `feature-state` dos bairros. */
 export const ESTADO_BAIRRO = {
@@ -43,13 +55,30 @@ export const CORES_MAPA = {
   escolaDentroDeBairro: "#c2410c",
   escolaForaDaCobertura: "#6d28d9",
   escolaForaDoLimite: "#b91c1c",
+  // Borda de todo polígono no coroplético: o limite entre classes nunca depende só da cor de preenchimento (DEC-T-08).
+  bordaCoropletico: "#1f2937",
+  zeroPreenchimento: "#ffffff",
 } as const
+
+/** Imagem da hachura de "sem dados", registrada no `style.load` (o `fill-pattern` não aceita `feature-state`). */
+export const IMAGEM_SEM_DADOS = "hachura-sem-dados"
+
+/** Situação e classe de cada bairro no período (`AnalisePeriodo`), por ID de bairro: o que o coroplético pinta. */
+export type DadosCoropletico = Readonly<
+  Record<
+    string,
+    { situacao: "valor" | "zero" | "sem-dados"; classe: number | null }
+  >
+>
 
 const OPACIDADE_BAIRRO = {
   normal: 0.15,
   hover: 0.35,
   selecionado: 0.5,
 } as const
+const OPACIDADE_COROPLETICO = { normal: 0.85, hover: 1 } as const
+const LARGURA_LINHA_ZERO = 3
+const TRACEJADO_ZERO = [2, 2]
 const LARGURA_LINHA_BAIRRO = 1.5
 const LARGURA_LINHA_SELECAO = 4
 const LARGURA_LINHA_LIMITE = 2
@@ -175,11 +204,31 @@ export function desenharIconeEscola(icone: IconeEscola): ImagemRgba {
   return { width: LADO_ICONE_PX, height: LADO_ICONE_PX, data }
 }
 
+const LADO_HACHURA_PX = 8
+const ESPESSURA_HACHURA_PX = 2
+const COR_HACHURA = [107, 114, 128, 255] as const
+
+/** Hachura diagonal cinza sobre fundo transparente (sem dados): diferente de qualquer classe mesmo sem ver cor. */
+export function desenharHachuraSemDados(): ImagemRgba {
+  const data = new Uint8Array(LADO_HACHURA_PX * LADO_HACHURA_PX * 4)
+  for (let linha = 0; linha < LADO_HACHURA_PX; linha++) {
+    for (let coluna = 0; coluna < LADO_HACHURA_PX; coluna++) {
+      const naDiagonal =
+        (coluna + linha) % LADO_HACHURA_PX < ESPESSURA_HACHURA_PX
+      if (naDiagonal)
+        data.set(COR_HACHURA, (linha * LADO_HACHURA_PX + coluna) * 4)
+    }
+  }
+  return { width: LADO_HACHURA_PX, height: LADO_HACHURA_PX, data }
+}
+
 type DadosDoMapa = {
   bairros: readonly Bairro[]
   limite: LimiteMunicipal
   /** Sem escolas (mapa resumo do Início), o estilo não leva a camada nem a fonte delas. */
   escolas?: readonly Escola[]
+  /** Sem isto o mapa tem exatamente as camadas do Território; com isto, as do coroplético da Saúde. */
+  coropletico?: DadosCoropletico
 }
 
 export type Enquadramento = [
@@ -208,12 +257,24 @@ export function calcularEnquadramento(
   ]
 }
 
-function bairrosParaGeoJson(bairros: readonly Bairro[]) {
+/** Bairros como GeoJSON; no coroplético cada um leva `situacao` e `classe` do período (DEC-T-07). */
+export function bairrosParaGeoJson(
+  bairros: readonly Bairro[],
+  coropletico?: DadosCoropletico
+) {
   return {
     type: "FeatureCollection" as const,
     features: bairros.map(({ id, nome, uv, geometria }) => ({
       type: "Feature" as const,
-      properties: { id, nome, uv },
+      properties: {
+        id,
+        nome,
+        uv,
+        ...(coropletico && {
+          situacao: coropletico[id]?.situacao ?? "sem-dados",
+          classe: coropletico[id]?.classe ?? null,
+        }),
+      },
       geometry: geometria,
     })),
   }
@@ -264,7 +325,57 @@ const CAMADA_DE_ESCOLAS = {
   layout: { "icon-image": IMAGEM_POR_ESTADO, "icon-allow-overlap": true },
 } as LayerSpecification
 
-function camadasDoEstilo(comEscolas: boolean): LayerSpecification[] {
+const SITUACAO = ["get", "situacao"]
+
+// Cor da classe pelo índice (1 a 5); zero informado fica branco; o resto não é pintado por esta camada.
+const COR_DA_CLASSE = [
+  "match",
+  ["get", "classe"],
+  ...CORES_COROPLETICO.flatMap((cor, posicao) => [posicao + 1, cor]),
+  CORES_MAPA.zeroPreenchimento,
+]
+
+function camadasDoCoropletico(): LayerSpecification[] {
+  return [
+    {
+      id: CAMADAS_MAPA.bairrosCoropletico,
+      type: "fill",
+      source: FONTES_MAPA.bairros,
+      filter: ["in", SITUACAO, ["literal", ["valor", "zero"]]],
+      paint: {
+        "fill-color": COR_DA_CLASSE,
+        "fill-opacity": emFeatureState(
+          ESTADO_BAIRRO.hover,
+          OPACIDADE_COROPLETICO.hover,
+          OPACIDADE_COROPLETICO.normal
+        ),
+      },
+    },
+    {
+      id: CAMADAS_MAPA.bairrosSemDados,
+      type: "fill",
+      source: FONTES_MAPA.bairros,
+      filter: ["==", SITUACAO, "sem-dados"],
+      paint: { "fill-pattern": IMAGEM_SEM_DADOS },
+    },
+    {
+      id: CAMADAS_MAPA.bairrosZeroLinha,
+      type: "line",
+      source: FONTES_MAPA.bairros,
+      filter: ["==", SITUACAO, "zero"],
+      paint: {
+        "line-color": CORES_MAPA.bordaCoropletico,
+        "line-width": LARGURA_LINHA_ZERO,
+        "line-dasharray": TRACEJADO_ZERO,
+      },
+    },
+  ] as LayerSpecification[]
+}
+
+function camadasDoEstilo(
+  comEscolas: boolean,
+  comCoropletico: boolean
+): LayerSpecification[] {
   const camadas = [
     {
       id: CAMADAS_MAPA.fundoNeutro,
@@ -288,22 +399,28 @@ function camadasDoEstilo(comEscolas: boolean): LayerSpecification[] {
       source: FONTES_MAPA.bairros,
       paint: {
         "fill-color": CORES_MAPA.bairro,
-        "fill-opacity": [
-          "case",
-          ["boolean", ["feature-state", ESTADO_BAIRRO.selecionado], false],
-          OPACIDADE_BAIRRO.selecionado,
-          ["boolean", ["feature-state", ESTADO_BAIRRO.hover], false],
-          OPACIDADE_BAIRRO.hover,
-          OPACIDADE_BAIRRO.normal,
-        ],
+        // No coroplético esta camada só recebe o clique e o hover: quem pinta são as camadas das classes.
+        "fill-opacity": comCoropletico
+          ? 0
+          : [
+              "case",
+              ["boolean", ["feature-state", ESTADO_BAIRRO.selecionado], false],
+              OPACIDADE_BAIRRO.selecionado,
+              ["boolean", ["feature-state", ESTADO_BAIRRO.hover], false],
+              OPACIDADE_BAIRRO.hover,
+              OPACIDADE_BAIRRO.normal,
+            ],
       },
     },
+    ...(comCoropletico ? camadasDoCoropletico() : []),
     {
       id: CAMADAS_MAPA.bairrosLinha,
       type: "line",
       source: FONTES_MAPA.bairros,
       paint: {
-        "line-color": CORES_MAPA.bairro,
+        "line-color": comCoropletico
+          ? CORES_MAPA.bordaCoropletico
+          : CORES_MAPA.bairro,
         "line-width": LARGURA_LINHA_BAIRRO,
       },
     },
@@ -330,6 +447,7 @@ export function montarEstilo({
   bairros,
   limite,
   escolas,
+  coropletico,
 }: DadosDoMapa): StyleSpecification {
   return {
     version: 8,
@@ -351,7 +469,7 @@ export function montarEstilo({
       },
       [FONTES_MAPA.bairros]: {
         type: "geojson",
-        data: bairrosParaGeoJson(bairros),
+        data: bairrosParaGeoJson(bairros, coropletico),
         promoteId: "id",
       },
       ...(escolas && {
@@ -361,7 +479,7 @@ export function montarEstilo({
         },
       }),
     },
-    layers: camadasDoEstilo(escolas !== undefined),
+    layers: camadasDoEstilo(escolas !== undefined, coropletico !== undefined),
   }
 }
 

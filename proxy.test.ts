@@ -38,7 +38,14 @@ describe("proxy", () => {
 })
 
 describe("proxy: áreas restritas", () => {
-  it.each(["/analista", "/analista/relatorio", "/admin", "/admin/usuarios"])(
+  it.each([
+    "/analista",
+    "/analista/relatorio",
+    "/admin",
+    "/admin/usuarios",
+    "/saude/importar",
+    "/saude/datasets",
+  ])(
     "leva %s ao login com o motivo e o caminho de volta quando não há cookie de sessão",
     (caminho) => {
       const resposta = proxy(
@@ -65,12 +72,17 @@ describe("proxy: áreas restritas", () => {
     expect(resposta.headers.get("location")).toBeNull()
   })
 
-  it.each(["/administracao", "/analistas", "/entrar", "/"])(
-    "não trata %s como área restrita",
-    (caminho) => {
-      const resposta = proxy(new NextRequest(`http://localhost:3000${caminho}`))
+  it.each([
+    "/administracao",
+    "/analistas",
+    "/entrar",
+    "/",
+    "/saude",
+    "/saude/importarx",
+    "/saude/datasetsx",
+  ])("não trata %s como área restrita", (caminho) => {
+    const resposta = proxy(new NextRequest(`http://localhost:3000${caminho}`))
 
-      expect(resposta.headers.get("location")).toBeNull()
-    }
-  )
+    expect(resposta.headers.get("location")).toBeNull()
+  })
 })

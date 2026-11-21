@@ -68,7 +68,13 @@ test.describe("jornada do Território", () => {
       .getByRole("link", { name: "Fontes e limitações" })
       .click()
     await expect(page).toHaveURL(/\/fontes/)
-    await expect(page.locator("#conteudo").getByRole("article")).toHaveCount(4)
+    // Os cartões das camadas são os que têm etiqueta; os datasets publicados (PA-02.04) vêm em seção própria.
+    await expect(
+      page
+        .locator("#conteudo")
+        .getByRole("article")
+        .filter({ hasText: "Etiqueta:" })
+    ).toHaveCount(4)
     expect(await violacoesGraves(page)).toEqual([])
   })
 

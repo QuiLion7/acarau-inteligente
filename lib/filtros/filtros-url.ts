@@ -45,3 +45,28 @@ export function resolverBairro(
   const bairro = bairros.find((item) => item.id === filtros.bairro)
   return bairro ? { tipo: "bairro", bairro } : { tipo: "nao-reconhecido" }
 }
+
+export type ResolucaoPeriodo =
+  | { tipo: "padrao"; periodo: string }
+  | { tipo: "periodo"; periodo: string }
+  | { tipo: "sem-dados"; valor: string }
+
+/**
+ * `periodo` da URL contra os períodos do dataset (`periodos` em ordem crescente, como o repositório entrega): "Todos"
+ * vale o mais recente; um período do dataset vale ele mesmo; qualquer outro texto é "período sem dados" e nunca é
+ * exibido nem usado para escolher dado de outro período (RF-02.30, DV-27).
+ */
+export function resolverPeriodo(
+  filtros: Filtros,
+  periodos: readonly string[]
+): ResolucaoPeriodo {
+  if (filtros.periodo === TODOS) {
+    const maisRecente = periodos.at(-1)
+    return maisRecente === undefined
+      ? { tipo: "sem-dados", valor: TODOS }
+      : { tipo: "padrao", periodo: maisRecente }
+  }
+  return periodos.includes(filtros.periodo)
+    ? { tipo: "periodo", periodo: filtros.periodo }
+    : { tipo: "sem-dados", valor: filtros.periodo }
+}

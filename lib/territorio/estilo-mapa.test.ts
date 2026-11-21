@@ -1,9 +1,12 @@
 import { obterDadosTerritorio } from "@/lib/server/territorio/territorio-repositorio"
 
 import {
+  bairrosParaGeoJson,
   CAMADAS_CONTROLAVEIS,
   CAMADAS_MAPA,
   calcularEnquadramento,
+  CORES_COROPLETICO,
+  desenharHachuraSemDados,
   desenharIconeEscola,
   ehErroDoFundo,
   FONTES_MAPA,
@@ -210,5 +213,125 @@ describe("ehErroDoFundo", () => {
     [{ error: new Error("sem origem") }, false],
   ])("erro %j: %s", (evento, esperado) => {
     expect(ehErroDoFundo(evento)).toBe(esperado)
+  })
+})
+
+const COROPLETICO = {
+  "uv-10": { situacao: "valor", classe: 3 },
+  "uv-13": { situacao: "zero", classe: null },
+  "uv-01": { situacao: "sem-dados", classe: null },
+} as const
+
+describe("montarEstilo com coroplético (PA-02.08, DEC-T-07, DEC-T-08)", () => {
+  const estilo = montarEstilo({ bairros, limite, coropletico: COROPLETICO })
+  const camada = (id: string) => estilo.layers.find((item) => item.id === id)
+
+  it("acrescenta as camadas das classes entre o preenchimento e a borda, mantendo a ordem do resto", () => {
+    expect(estilo.layers.map(({ id }) => id)).toEqual([
+      CAMADAS_MAPA.fundoNeutro,
+      CAMADAS_MAPA.fundoOsm,
+      CAMADAS_MAPA.limite,
+      CAMADAS_MAPA.bairrosPreenchimento,
+      CAMADAS_MAPA.bairrosCoropletico,
+      CAMADAS_MAPA.bairrosSemDados,
+      CAMADAS_MAPA.bairrosZeroLinha,
+      CAMADAS_MAPA.bairrosLinha,
+      CAMADAS_MAPA.bairrosSelecao,
+    ])
+  })
+
+  it("o preenchimento antigo deixa de pintar e fica só para o clique e o hover", () => {
+    expect(camada(CAMADAS_MAPA.bairrosPreenchimento)).toMatchObject({
+      paint: { "fill-opacity": 0 },
+    })
+  })
+
+  it("pinta as cinco classes com a paleta sequencial e o zero em branco", () => {
+    const expressao = JSON.stringify(
+      (camada(CAMADAS_MAPA.bairrosCoropletico) as { paint: object }).paint
+    )
+
+    for (const cor of CORES_COROPLETICO) expect(expressao).toContain(cor)
+    expect(expressao).toContain("#ffffff")
+    expect(CORES_COROPLETICO).toHaveLength(5)
+  })
+
+  it("o zero tem borda tracejada e o sem dados tem hachura, e cada um só pinta a sua situação", () => {
+    expect(camada(CAMADAS_MAPA.bairrosZeroLinha)).toMatchObject({
+      type: "line",
+      filter: ["==", ["get", "situacao"], "zero"],
+      paint: { "line-dasharray": [2, 2] },
+    })
+    expect(camada(CAMADAS_MAPA.bairrosSemDados)).toMatchObject({
+      type: "fill",
+      filter: ["==", ["get", "situacao"], "sem-dados"],
+      paint: { "fill-pattern": "hachura-sem-dados" },
+    })
+  })
+
+  it("todo polígono tem borda escura, e não a cor dos bairros do Território", () => {
+    expect(camada(CAMADAS_MAPA.bairrosLinha)).toMatchObject({
+      paint: { "line-color": "#1f2937" },
+    })
+  })
+
+  it("leva situação e classe nas propriedades de cada bairro; bairro fora do objeto é sem dados", () => {
+    const fonte = estilo.sources[FONTES_MAPA.bairros] as unknown as {
+      data: { features: { properties: Record<string, unknown> }[] }
+    }
+    const porId = Object.fromEntries(
+      fonte.data.features.map(({ properties }) => [properties.id, properties])
+    )
+
+    expect(porId["uv-10"]).toMatchObject({ situacao: "valor", classe: 3 })
+    expect(porId["uv-13"]).toMatchObject({ situacao: "zero", classe: null })
+    expect(porId["uv-01"]).toMatchObject({
+      situacao: "sem-dados",
+      classe: null,
+    })
+    expect(porId["uv-05"]).toMatchObject({
+      situacao: "sem-dados",
+      classe: null,
+    })
+  })
+
+  it("sem o coroplético o estilo é o do Território, sem situação nem classe nas propriedades", () => {
+    const comum = montarEstilo({ bairros, limite })
+    const fonte = comum.sources[FONTES_MAPA.bairros] as unknown as {
+      data: { features: { properties: Record<string, unknown> }[] }
+    }
+
+    expect(comum.layers.map(({ id }) => id)).not.toContain(
+      CAMADAS_MAPA.bairrosCoropletico
+    )
+    expect(Object.keys(fonte.data.features[0]?.properties ?? {})).toEqual([
+      "id",
+      "nome",
+      "uv",
+    ])
+  })
+})
+
+describe("bairrosParaGeoJson", () => {
+  it("troca os dados do período mantendo geometria e ID dos 24 bairros", () => {
+    const geojson = bairrosParaGeoJson(bairros, COROPLETICO)
+
+    expect(geojson.features).toHaveLength(24)
+    expect(geojson.features[9]).toMatchObject({
+      properties: { id: "uv-10", situacao: "valor", classe: 3 },
+      geometry: bairros[9]?.geometria,
+    })
+  })
+})
+
+describe("desenharHachuraSemDados", () => {
+  it("é uma imagem quadrada com listras diagonais cinza e fundo transparente", () => {
+    const { width, height, data } = desenharHachuraSemDados()
+
+    expect(data).toHaveLength(width * height * 4)
+    expect(width).toBe(height)
+    const opacos = pixelsOpacos({ data })
+    expect(opacos).toBeGreaterThan(0)
+    expect(opacos).toBeLessThan(width * height)
   })
 })
