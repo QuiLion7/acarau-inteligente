@@ -96,7 +96,32 @@ describe("rotaApi: resposta", () => {
       requestId: REQUEST_ID,
       sessao: null,
       agora: AGORA,
+      parametros: expect.any(Function),
     })
+  })
+
+  it("entrega os segmentos dinâmicos da rota que o Next passa como Promise", async () => {
+    let lidos: unknown
+    const rota = montarRota()(async (_request, { parametros }) => {
+      lidos = await parametros()
+      return NextResponse.json({ ok: true })
+    })
+
+    await rota(requisicao(), { params: Promise.resolve({ id: "abc" }) })
+
+    expect(lidos).toEqual({ id: "abc" })
+  })
+
+  it("sem segmentos dinâmicos os parâmetros vêm vazios", async () => {
+    let lidos: unknown
+    const rota = montarRota()(async (_request, { parametros }) => {
+      lidos = await parametros()
+      return NextResponse.json({ ok: true })
+    })
+
+    await rota(requisicao())
+
+    expect(lidos).toEqual({})
   })
 })
 
