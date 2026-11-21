@@ -51,9 +51,11 @@ next-env.d.ts
 /quilion
 /quilion.pub
 
-# dados geográficos: só os 3 insumos da carga e os artefatos gerados (dados/gerados) entram no git
+# dados geográficos: só os 3 insumos da carga, os artefatos gerados (dados/gerados) e os CSVs sintéticos da demo
+# (dados/sinteticos) entram no git
 /dados/*
 !/dados/acarau_completo.gpkg
 !/dados/escolas_origem_tratada.csv
 !/dados/relatorio_validacao_bairros.csv
 !/dados/gerados/
+!/dados/sinteticos/
