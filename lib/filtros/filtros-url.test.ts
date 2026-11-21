@@ -2,6 +2,7 @@ import {
   comFiltros,
   lerFiltros,
   resolverBairro,
+  resolverPeriodo,
   TODOS,
 } from "@/lib/filtros/filtros-url"
 import type { BairroResumo } from "@/lib/territorio/artefato-schema"
@@ -127,5 +128,43 @@ describe("resolverBairro", () => {
     expect(
       resolverBairro({ bairro: "uv-03", periodo: "2025" }, BAIRROS)
     ).toMatchObject({ tipo: "bairro" })
+  })
+})
+
+describe("resolverPeriodo (TU-18, PA-02.05)", () => {
+  const PERIODOS = ["2024", "2025", "2026"]
+
+  function resolver(periodo: string, periodos = PERIODOS) {
+    return resolverPeriodo({ bairro: TODOS, periodo }, periodos)
+  }
+
+  it('"Todos" vale o período mais recente do dataset', () => {
+    expect(resolver(TODOS)).toEqual({ tipo: "padrao", periodo: "2026" })
+  })
+
+  it("um período do dataset vale ele mesmo", () => {
+    expect(resolver("2025")).toEqual({ tipo: "periodo", periodo: "2025" })
+  })
+
+  it.each([
+    ["ano que o dataset não tem", "1999"],
+    ["mês de um dataset anual", "2025-01"],
+    ["HTML", "<b>2025</b>"],
+    ["texto longo", "9".repeat(80)],
+  ])(
+    "%s é período sem dados, nunca o dado de outro período",
+    (_caso, valor) => {
+      expect(resolver(valor)).toEqual({ tipo: "sem-dados", valor })
+    }
+  )
+
+  it("dataset sem períodos é sem dados, mesmo com Todos", () => {
+    expect(resolver(TODOS, [])).toEqual({ tipo: "sem-dados", valor: TODOS })
+  })
+
+  it("ignora o bairro ao resolver o período", () => {
+    expect(
+      resolverPeriodo({ bairro: "uv-10", periodo: "2024" }, PERIODOS)
+    ).toEqual({ tipo: "periodo", periodo: "2024" })
   })
 })
