@@ -1,0 +1,41 @@
+DADOS SINTETICOS DA DEMONSTRACAO
+
+Todos os arquivos desta pasta sao FICTICIOS, criados para a demonstracao Acarau Inteligente. Os numeros nao
+representam casos reais e nao ha nenhum dado pessoal. O sufixo _DEMO no nome marca cada arquivo como sintetico.
+(O arquivo dados/casos_saude_DEMO.csv, na pasta de cima, continua como exemplo simples e nao muda.)
+
+ROTEIRO
+  saude-roteiro_DEMO.csv
+    Separador ponto e virgula, UTF-8 com BOM, quebra de linha CRLF e dois anos (2025 e 2026).
+    Grafias divergentes de proposito: "SAO BENEDITO" (maiusculas, sem acento), "  centro " (espacos extras) e
+    "rodagem" (caixa baixa); "Antonio Livino da Silveira" e "Mucuna" com acento.
+    "Morada" e AMBIGUO (Morada dos Ventos ou Morada Nova): o analista escolhe um dos dois.
+    "Aranau" NAO e reconhecido (localidade fora da sede): o analista associa a um bairro ou marca "fora da cobertura".
+    Tem um zero explicito (Rodagem em 2026). Sem erro: depois das duas decisoes a validacao fica limpa.
+
+PRE-CARREGADO
+  saude-pre-carregado_DEMO.csv
+    Dataset de exemplo que a demonstracao grava e publica sozinha na subida do servidor e no reset da Administracao,
+    pelo mesmo motor de importacao. Separador ponto e virgula, UTF-8, tres anos (2024 a 2026).
+    18 bairros com nomes na grafia oficial (nenhuma decisao pendente); os outros 6 bairros ficam sem linha e a
+    Saude os mostra como "sem dados". Tem um zero explicito (Rodagem em 2026). Numeros ficticios, sem erro.
+
+ADVERSOS (adversos/): cada arquivo e recusado, ou aponta erro, pelo motivo do proprio nome
+  sem-linhas_DEMO.csv                  so o cabecalho: SEM_LINHAS
+  10001-linhas_DEMO.csv                10.001 linhas de dados: LINHAS_DEMAIS (o limite e 10.000)
+  acento-divergente-latin1_DEMO.csv    gravado em Latin-1 com acento: ENCODING_INVALIDO (so UTF-8 e aceito)
+  territorio-desconhecido_DEMO.csv     nenhum nome corresponde a um bairro: tudo pendente, nada e associado sozinho
+  decimal-invalido_DEMO.csv            casos com decimal (12,5): CASOS_DECIMAL
+  casos-invalidos_DEMO.csv             casos negativo, texto e decimal
+  separador-misto_DEMO.csv             cabecalho com ponto e virgula e linha com virgula: SEPARADOR_MISTO
+  valores-vazios_DEMO.csv              casos vazio: AVISO "sem dado" (nunca zero); nao bloqueia
+  dado-pessoal-coluna_DEMO.csv         coluna nome_paciente: DADO_PESSOAL_COLUNA
+  dado-pessoal-cpf_DEMO.csv            CPF formatado (fictício) numa celula: DADO_PESSOAL_VALOR
+  duplicata_DEMO.csv                   "Centro" e "CENTRO" no mesmo ano: DUPLICATA
+  periodo-invalido_DEMO.csv            periodos 2025-13 e 25: PERIODO_INVALIDO
+  granularidade-mista_DEMO.csv         ano e mes no mesmo arquivo: GRANULARIDADE_MISTURADA
+  aspas-nao-fechadas_DEMO.csv          aspa aberta e nunca fechada: ASPAS_NAO_FECHADAS
+  colunas-a-mais_DEMO.csv              linha com coluna a mais: COLUNAS_DIVERGENTES
+  sem-cabecalho_DEMO.csv               primeira linha e dado: SEM_CABECALHO
+
+Os testes em lib/importacao/arquivos-sinteticos.test.ts passam cada arquivo pelo motor e conferem o resultado.
