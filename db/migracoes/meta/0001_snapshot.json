@@ -1,0 +1,505 @@
+{
+  "id": "9a3c9bf3-0827-4edd-bce9-71ae5ba7731e",
+  "prevId": "0d613b1f-7ccc-4ae8-9e7d-ee8db3cebabc",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.dataset": {
+      "name": "dataset",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indicador": {
+          "name": "indicador",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fonte": {
+          "name": "fonte",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unidade": {
+          "name": "unidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'casos'"
+        },
+        "proveniencia": {
+          "name": "proveniencia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pre_carregado": {
+          "name": "pre_carregado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "dataset_pre_carregado_unico": {
+          "name": "dataset_pre_carregado_unico",
+          "columns": [
+            {
+              "expression": "pre_carregado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"dataset\".\"pre_carregado\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dataset_proveniencia_sintetico": {
+          "name": "dataset_proveniencia_sintetico",
+          "value": "\"dataset\".\"proveniencia\" = 'SINTETICO'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.dataset_linha": {
+      "name": "dataset_linha",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "versao_id": {
+          "name": "versao_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linha_arquivo": {
+          "name": "linha_arquivo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bairro_id": {
+          "name": "bairro_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nome_original": {
+          "name": "nome_original",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "periodo": {
+          "name": "periodo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "casos": {
+          "name": "casos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "dataset_linha_versao_idx": {
+          "name": "dataset_linha_versao_idx",
+          "columns": [
+            {
+              "expression": "versao_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "dataset_linha_bairro_periodo_unico": {
+          "name": "dataset_linha_bairro_periodo_unico",
+          "columns": [
+            {
+              "expression": "versao_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "bairro_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "periodo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"dataset_linha\".\"bairro_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "dataset_linha_versao_id_dataset_versao_id_fk": {
+          "name": "dataset_linha_versao_id_dataset_versao_id_fk",
+          "tableFrom": "dataset_linha",
+          "tableTo": "dataset_versao",
+          "columnsFrom": [
+            "versao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dataset_linha_casos_nao_negativo": {
+          "name": "dataset_linha_casos_nao_negativo",
+          "value": "\"dataset_linha\".\"casos\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.dataset_versao": {
+      "name": "dataset_versao",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "dataset_id": {
+          "name": "dataset_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero": {
+          "name": "numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "situacao": {
+          "name": "situacao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granularidade": {
+          "name": "granularidade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "periodos": {
+          "name": "periodos",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash_conteudo": {
+          "name": "hash_conteudo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome_arquivo": {
+          "name": "nome_arquivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_usuario": {
+          "name": "autor_usuario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_nome": {
+          "name": "autor_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linhas_gravadas": {
+          "name": "linhas_gravadas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importado_em": {
+          "name": "importado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publicado_em": {
+          "name": "publicado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relatorio": {
+          "name": "relatorio",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "dataset_versao_uma_publicada": {
+          "name": "dataset_versao_uma_publicada",
+          "columns": [
+            {
+              "expression": "dataset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"dataset_versao\".\"situacao\" = 'publicado'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "dataset_versao_dataset_id_dataset_id_fk": {
+          "name": "dataset_versao_dataset_id_dataset_id_fk",
+          "tableFrom": "dataset_versao",
+          "tableTo": "dataset",
+          "columnsFrom": [
+            "dataset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dataset_versao_numero_unico": {
+          "name": "dataset_versao_numero_unico",
+          "nullsNotDistinct": false,
+          "columns": [
+            "dataset_id",
+            "numero"
+          ]
+        },
+        "dataset_versao_hash_conteudo_unico": {
+          "name": "dataset_versao_hash_conteudo_unico",
+          "nullsNotDistinct": false,
+          "columns": [
+            "hash_conteudo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "dataset_versao_situacao_valida": {
+          "name": "dataset_versao_situacao_valida",
+          "value": "\"dataset_versao\".\"situacao\" in ('privado', 'publicado')"
+        },
+        "dataset_versao_granularidade_valida": {
+          "name": "dataset_versao_granularidade_valida",
+          "value": "\"dataset_versao\".\"granularidade\" in ('ano', 'mes')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sessao": {
+      "name": "sessao",
+      "schema": "",
+      "columns": {
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario": {
+          "name": "usuario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "impressao_credencial": {
+          "name": "impressao_credencial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criada_em": {
+          "name": "criada_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ultima_atividade_em": {
+          "name": "ultima_atividade_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "encerrada_em": {
+          "name": "encerrada_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sessao_usuario_idx": {
+          "name": "sessao_usuario_idx",
+          "columns": [
+            {
+              "expression": "usuario",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tentativa_login": {
+      "name": "tentativa_login",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario": {
+          "name": "usuario",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sucesso": {
+          "name": "sucesso",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ocorrida_em": {
+          "name": "ocorrida_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tentativa_login_usuario_ocorrida_em_idx": {
+          "name": "tentativa_login_usuario_ocorrida_em_idx",
+          "columns": [
+            {
+              "expression": "usuario",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ocorrida_em",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

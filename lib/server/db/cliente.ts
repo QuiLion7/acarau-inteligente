@@ -9,6 +9,12 @@ import { log } from "@/lib/server/log"
 
 export type Banco = NodePgDatabase<typeof schema> & { $client: Pool }
 
+/** O que o callback de `banco.transaction` recebe: as mesmas operações do banco, dentro da transação. */
+export type Transacao = Parameters<Parameters<Banco["transaction"]>[0]>[0]
+
+/** Banco ou transação: as operações que valem nos dois (a recarga da demo roda dentro da transação do reset). */
+export type Executor = Banco | Transacao
+
 export function criarBanco(urlConexao: string): Banco {
   const pool = new Pool({ connectionString: urlConexao })
   // Sem ouvinte, erro de conexão ociosa derrubaria o processo.
