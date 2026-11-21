@@ -16,7 +16,8 @@ Aplicação web de demonstração que transforma dados territoriais e setoriais 
 |---|---|
 | EP-00 Fundação | Implementado (`sdd/ep-00-fundacao/tasks.md`): infraestrutura, banco, contrato de API, testes, casca, páginas públicas e acesso por papel; falta a revisão e o roteiro manual de `sdd/ep-00-fundacao/qa-report.md` |
 | EP-01 Território e escolas | Implementado (`sdd/ep-01-territorio-escolas/tasks.md`): carga e conferência do território, mapa com bairros, limite e escolas, lista, ficha, tabelas, quadro de qualidade, mapa resumido no Início e "Fontes e limitações" com as camadas; falta a revisão e o roteiro manual de `sdd/ep-01-territorio-escolas/qa-report.md` |
-| EP-02 a EP-05 | Não iniciados |
+| EP-02 Importação CSV e motor analítico | Implementado (`sdd/ep-02-importacao-analises/tasks.md`): importação de CSV por assistente, datasets versionados e publicáveis, Saúde com coroplético, ranking, tabela e gráfico por período, dataset pré-carregado, reset e datasets em "Fontes e limitações"; falta a revisão e o roteiro manual de `sdd/ep-02-importacao-analises/qa-report.md` |
+| EP-03 a EP-05 | Não iniciados |
 
 ## Pré-requisitos
 
@@ -88,6 +89,17 @@ O Território lê dois artefatos **versionados** em `dados/gerados/` (`territori
 - **Conferir**: `npm run dados:territorio -- --conferir` garante que os artefatos versionados são exatamente o que a carga produz hoje dos insumos versionados; reprova a entrega se alguém editar um lado sem o outro.
 - **Git**: os insumos de `dados/` já estão no repositório, então o clone traz tudo que a carga lê. Arquivos **novos** em `dados/` só entram se forem os três insumos acima ou `dados/gerados/` (`.gitignore`).
 - **Data de referência** das camadas: "Não informada" até haver a data do CSV do INEP e do recorte do OSM (muda só a constante da carga).
+
+## Importação de CSV e Saúde (EP-02)
+
+O analista (ou o administrador) importa contagens de saúde por bairro e período em **Saúde > Importar CSV** (`/saude/importar`). O assistente lê e valida o arquivo **no navegador** a cada passo (separador, colunas, bairros, validação) com o mesmo motor que o servidor roda de novo ao confirmar; nada é gravado antes da confirmação e cancelar só descarta o estado da tela.
+
+- **Regras do arquivo:** `.csv` em UTF-8, até 5 MB e 10.000 linhas, com vírgula ou ponto e vírgula; só contagens agregadas (cabeçalho ou célula com cara de dado pessoal, como `nome_paciente` ou um CPF, recusam o arquivo). O mesmo conteúdo nunca é importado duas vezes (SHA-256 dos bytes).
+- **Versões:** um dataset novo ou uma nova versão de um existente nasce **privada**; **Publicar** é ação explícita (`/saude/datasets`), e publicar uma versão despublica a outra do mesmo dataset. O visitante só vê o publicado.
+- **Saúde:** mapa coroplético por quantis (até 5 classes), legenda, total ("soma dos bairros com dados"), ranking, tabela dos 24 bairros e gráfico por período. Taxa não é calculada (a demonstração não tem população por bairro).
+- **Dados de exemplo (`dados/sinteticos/`):** `saude-roteiro_DEMO.csv` (roteiro de importação, com um bairro ambíguo e outro não reconhecido), `adversos/` (um arquivo ruim por motivo de recusa) e `saude-pre-carregado_DEMO.csv`. O `LEIA-ME.txt` da pasta explica cada um.
+- **Pré-carregado e reset:** na subida o servidor grava e publica `saude-pre-carregado_DEMO.csv` se ele ainda não existe (pelo mesmo motor da importação; uma falha vai para o log e não derruba a subida). Em **Administração > Reiniciar a demonstração** o administrador apaga todos os datasets importados e restaura esse. O território nunca é tocado. A imagem do Docker copia só esse CSV (o `.dockerignore` exclui o resto de `dados/`) e o servidor o lê a partir do diretório de execução (`/app`).
+- **Testes que gravam dados:** o banco do E2E acumula entre execuções e o hash é único, então todo spec da Saúde começa com `reiniciarDemo()` (`tests/e2e/acesso-helpers.ts`).
 
 ## Dados
 
