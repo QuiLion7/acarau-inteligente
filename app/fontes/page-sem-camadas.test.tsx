@@ -3,10 +3,16 @@ import { render, screen } from "@testing-library/react"
 import PaginaFontes from "@/app/fontes/page"
 
 jest.mock("@/lib/config/camadas-carregadas", () => ({ CAMADAS_CARREGADAS: [] }))
+jest.mock("@/lib/server/db/cliente", () => ({
+  obterBanco: jest.fn(() => ({})),
+}))
+jest.mock("@/lib/server/datasets/dataset-repositorio", () => ({
+  listarDatasetsPublicados: jest.fn().mockResolvedValue([]),
+}))
 
 describe("PaginaFontes sem camada carregada (PA-01.04)", () => {
-  it("diz que nenhuma camada foi carregada e não lista cartão", () => {
-    render(<PaginaFontes />)
+  it("diz que nenhuma camada foi carregada e não lista cartão", async () => {
+    render(await PaginaFontes())
 
     expect(
       screen.getByRole("heading", {
