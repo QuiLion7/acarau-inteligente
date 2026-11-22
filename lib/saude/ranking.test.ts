@@ -1,5 +1,5 @@
 import type { ItemBairroPeriodo } from "@/lib/saude/analise-periodo"
-import { ordenarRanking } from "@/lib/saude/ranking"
+import { ordenarRanking, posicaoNoRanking } from "@/lib/saude/ranking"
 
 function item(
   id: string,
@@ -71,5 +71,28 @@ describe("ordenarRanking (TU-15, RN-02.11)", () => {
 
   it("sem nenhum item devolve listas vazias", () => {
     expect(ordenarRanking([])).toEqual({ ranking: [], semDados: [] })
+  })
+})
+
+describe("posicaoNoRanking (TU-07, CA-03.06)", () => {
+  const { ranking } = ordenarRanking([
+    item("uv-01", "Centro", 10),
+    item("uv-02", "Rodagem", 0),
+    item("uv-03", "Morada", 20),
+    item("uv-04", "Mongubas", null),
+  ])
+
+  it("dá a posição a partir de 1, e o bairro com zero explícito fica no fim", () => {
+    expect(posicaoNoRanking(ranking, "uv-03")).toBe(1)
+    expect(posicaoNoRanking(ranking, "uv-01")).toBe(2)
+    expect(posicaoNoRanking(ranking, "uv-02")).toBe(3)
+  })
+
+  it("bairro sem dados está fora do ranking e não tem posição", () => {
+    expect(posicaoNoRanking(ranking, "uv-04")).toBeNull()
+  })
+
+  it("ID que não existe também não tem posição", () => {
+    expect(posicaoNoRanking(ranking, "uv-99")).toBeNull()
   })
 })

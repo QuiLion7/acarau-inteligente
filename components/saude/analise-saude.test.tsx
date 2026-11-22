@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { AnaliseSaude } from "@/components/saude/analise-saude"
+import { TEXTOS_SAUDE } from "@/lib/config/textos-saude"
 import { datasetsClient } from "@/lib/api/datasets-client"
 import type { AnaliseDatasetSaude } from "@/lib/saude/analise-dataset"
 import { renderComProviders } from "@/test/render-com-providers"
@@ -58,10 +59,14 @@ function renderizar(
   )
 }
 
+async function abrirAbaTabela() {
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Tabela" }))
+}
+
 beforeEach(() => jest.clearAllMocks())
 
 describe("AnaliseSaude: o período mais recente por padrão", () => {
-  it("mostra o dataset, o total, a legenda, o ranking e a tabela de 2026, com as mesmas contagens", () => {
+  it("mostra o dataset, o total, a legenda, o ranking e a tabela de 2026, com as mesmas contagens", async () => {
     renderizar()
 
     expect(
@@ -71,17 +76,20 @@ describe("AnaliseSaude: o período mais recente por padrão", () => {
       screen.getByText("Soma dos 2 bairros com dados no período.")
     ).toBeVisible()
     const total = within(
-      screen.getByRole("heading", { name: "Total do período" })
-        .parentElement as HTMLElement
+      screen.getByRole("group", { name: "Total do período" })
     )
-    expect(total.getByText("51")).toBeVisible()
+    expect(total.getByText("51 casos")).toBeVisible()
     const ranking = within(screen.getByRole("list", { name: "" }))
     expect(
       ranking.getAllByRole("listitem").map((item) => item.textContent)
     ).toEqual(["Centro51 casos", "Outra Banda0 casos"])
+    expect(screen.getByText(/Unidade: casos. Período: 2026/)).toBeVisible()
+    await abrirAbaTabela()
     const rodagem = screen.getByRole("row", { name: /Rodagem/ })
     expect(within(rodagem).getByText("sem dados")).toBeVisible()
-    expect(screen.getByText(/Unidade: casos. Período: 2026/)).toBeVisible()
+    expect(
+      screen.getByRole("heading", { name: "Ranking dos bairros" })
+    ).toBeVisible()
   })
 
   it("trocar o período na URL recalcula tudo sem refazer nenhuma requisição ao servidor", () => {
@@ -91,15 +99,16 @@ describe("AnaliseSaude: o período mais recente por padrão", () => {
       screen.getByText("Soma dos 3 bairros com dados no período.")
     ).toBeVisible()
     expect(
-      within(
-        screen.getByRole("heading", { name: "Total do período" })
-          .parentElement as HTMLElement
-      ).getByText("30")
-    ).toBeVisible()
-    expect(
-      screen.getByText(
-        "Fora da cobertura: 6 casos em 1 localidade, fora do total e fora do mapa."
+      within(screen.getByRole("group", { name: "Total do período" })).getByText(
+        "30 casos"
       )
+    ).toBeVisible()
+    const foraDaCobertura = within(
+      screen.getByRole("group", { name: "Fora da cobertura" })
+    )
+    expect(foraDaCobertura.getByText("6 casos")).toBeVisible()
+    expect(
+      foraDaCobertura.getByText("em 1 localidade, fora do total e fora do mapa")
     ).toBeVisible()
     expect(datasetsClient.publicar).not.toHaveBeenCalled()
   })
@@ -117,6 +126,31 @@ describe("AnaliseSaude: o período mais recente por padrão", () => {
   })
 })
 
+describe("AnaliseSaude: variação do total (CA-03.02, CA-03.04)", () => {
+  it("2026 compara só os bairros com dado nos dois períodos, com valor absoluto e percentual", () => {
+    renderizar(ANALISE_SAUDE, "periodo=2026")
+
+    const total = within(
+      screen.getByRole("group", { name: "Total do período" })
+    )
+    expect(
+      total.getByText(
+        "+30 casos (+142,9%) em relação a 2025, comparando 2 bairros."
+      )
+    ).toBeVisible()
+  })
+
+  it("o primeiro período diz que não há anterior e não mostra 0%", () => {
+    renderizar(ANALISE_SAUDE, "periodo=2025")
+
+    const total = within(
+      screen.getByRole("group", { name: "Total do período" })
+    )
+    expect(total.getByText("Sem período anterior para comparar.")).toBeVisible()
+    expect(total.queryByText(/%/)).toBeNull()
+  })
+})
+
 describe("AnaliseSaude: período que o dataset não tem (TU-18, CA-02.27)", () => {
   it("mostra período sem dados com a opção de limpar, e nenhum valor de outro período", async () => {
     const usuario = userEvent.setup()
@@ -129,6 +163,10 @@ describe("AnaliseSaude: período que o dataset não tem (TU-18, CA-02.27)", () =
     expect(screen.queryByText("51")).toBeNull()
     expect(screen.queryByText(/Soma d/)).toBeNull()
     expect(screen.queryByText("1999")).toBeNull()
+    expect(
+      screen.queryByRole("region", { name: "Resumo do período" })
+    ).toBeNull()
+    expect(screen.queryByRole("group", { name: "Total do período" })).toBeNull()
 
     await usuario.click(screen.getByRole("button", { name: "Limpar período" }))
 
@@ -137,8 +175,9 @@ describe("AnaliseSaude: período que o dataset não tem (TU-18, CA-02.27)", () =
 })
 
 describe("AnaliseSaude: bairro selecionado (RF-02.35)", () => {
-  it("destaca o bairro da URL no ranking e na tabela", () => {
+  it("destaca o bairro da URL no ranking e na tabela", async () => {
     renderizar(ANALISE_SAUDE, "bairro=uv-10")
+    await abrirAbaTabela()
 
     const marcados = screen
       .getAllByRole("button", { name: "Centro" })
@@ -169,6 +208,90 @@ describe("AnaliseSaude: bairro selecionado (RF-02.35)", () => {
   })
 })
 
+describe("AnaliseSaude: seletor de bairro e card do bairro (CA-03.06, CA-03.08)", () => {
+  it("o seletor escreve o bairro escolhido na URL, preservando o período", async () => {
+    const usuario = userEvent.setup()
+    renderizar(ANALISE_SAUDE, "periodo=2025")
+
+    await usuario.type(
+      screen.getByRole("combobox", { name: "Bairro" }),
+      "centro"
+    )
+    await usuario.click(
+      await screen.findByRole("option", { name: "Centro (UV 10)" })
+    )
+
+    expect(replace).toHaveBeenCalledWith("/saude?periodo=2025&bairro=uv-10", {
+      scroll: false,
+    })
+  })
+
+  it("com bairro na URL o seletor o mostra e o card traz valor, posição e variação do bairro", () => {
+    renderizar(ANALISE_SAUDE, "bairro=uv-10")
+
+    expect(screen.getByRole("combobox", { name: "Bairro" })).toHaveValue(
+      "Centro (UV 10)"
+    )
+    const card = screen.getByRole("group", { name: "Bairro selecionado" })
+    expect(card).toHaveTextContent("Centro")
+    expect(card).toHaveTextContent("51 casos")
+    expect(card).toHaveTextContent("Posição 1 de 2 no ranking")
+    expect(card).toHaveTextContent(
+      "+42 casos (+466,7%) em relação a 2025, comparando 1 bairro."
+    )
+  })
+
+  it("bairro sem dados no período mostra 'sem dados' e 'fora do ranking' no card", () => {
+    renderizar(ANALISE_SAUDE, "bairro=uv-13")
+
+    const card = screen.getByRole("group", { name: "Bairro selecionado" })
+    expect(card).toHaveTextContent("Sem dados no período")
+    expect(card).toHaveTextContent("Fora do ranking")
+  })
+
+  it("sem bairro selecionado o card do bairro não aparece e o seletor diz 'Todos os bairros'", () => {
+    renderizar()
+
+    expect(
+      screen.queryByRole("group", { name: "Bairro selecionado" })
+    ).toBeNull()
+    expect(screen.getByRole("combobox", { name: "Bairro" })).toHaveValue(
+      "Todos os bairros"
+    )
+  })
+})
+
+describe("AnaliseSaude: bairro não reconhecido (TU-14, CA-03.11, PA-03.11)", () => {
+  it("mostra o estado acima dos cards, não exibe o valor recebido e mantém a análise como 'todos'", async () => {
+    const usuario = userEvent.setup()
+    renderizar(ANALISE_SAUDE, "bairro=uv-99")
+
+    const estado = screen.getByRole("heading", {
+      name: "Bairro não reconhecido",
+    })
+    const cards = screen.getByRole("region", { name: "Resumo do período" })
+    expect(
+      estado.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(document.body).not.toHaveTextContent("uv-99")
+    expect(screen.getByRole("combobox", { name: "Bairro" })).toHaveValue("")
+    expect(
+      within(screen.getByRole("group", { name: "Total do período" })).getByText(
+        "51 casos"
+      )
+    ).toBeVisible()
+    await abrirAbaTabela()
+    expect(screen.getByRole("table")).toBeVisible()
+    expect(
+      screen.queryByRole("group", { name: "Bairro selecionado" })
+    ).toBeNull()
+
+    await usuario.click(screen.getByRole("button", { name: "Limpar bairro" }))
+
+    expect(replace).toHaveBeenCalledWith("/saude", { scroll: false })
+  })
+})
+
 describe("AnaliseSaude: mapa e gráfico (RF-02.31, RF-02.38, CA-02.19)", () => {
   it("o mapa recebe a situação e a classe do período, do mesmo objeto que a legenda e a tabela leem", async () => {
     renderizar(ANALISE_SAUDE, "periodo=2026")
@@ -180,6 +303,7 @@ describe("AnaliseSaude: mapa e gráfico (RF-02.31, RF-02.38, CA-02.19)", () => {
     expect(within(mapa).getByText(/Rodagem no mapa/)).toHaveTextContent(
       '{"situacao":"sem-dados","classe":null}'
     )
+    await abrirAbaTabela()
     expect(
       within(screen.getByRole("row", { name: /Centro/ })).getByText("51")
     ).toBeVisible()
@@ -242,17 +366,51 @@ describe("AnaliseSaude: mapa e gráfico (RF-02.31, RF-02.38, CA-02.19)", () => {
   })
 })
 
-describe("AnaliseSaude: taxa (TU-27, CA-02.25)", () => {
-  it("explica que a taxa exige a população e não mostra nenhuma taxa", () => {
+describe("AnaliseSaude: aba Tabela (TU-15, CA-03.10)", () => {
+  it("ordena por casos e mantém ranking, gráfico e metodologia visíveis fora das abas", async () => {
+    const usuario = userEvent.setup()
     renderizar()
 
+    await abrirAbaTabela()
+    const bairrosDaTabela = () =>
+      within(screen.getByRole("table"))
+        .getAllByRole("row")
+        .slice(1)
+        .map((linha) => within(linha).getAllByRole("cell")[1]?.textContent)
+
+    await usuario.click(screen.getByRole("button", { name: /Casos/ }))
+    expect(bairrosDaTabela().slice(0, 2)).toEqual(["Centro", "Outra Banda"])
+    expect(screen.getAllByText("sem dados")).toHaveLength(22)
+
+    await usuario.click(screen.getByRole("button", { name: /Casos/ }))
+    expect(bairrosDaTabela().slice(0, 2)).toEqual(["Outra Banda", "Centro"])
     expect(
-      screen.getByText(
-        "A taxa exige a população de cada bairro no período, que a demonstração não tem. Por isso mostramos contagens."
-      )
+      screen.getByRole("heading", { name: "Ranking dos bairros" })
     ).toBeVisible()
+    expect(await screen.findByText("Gráfico de todos os bairros")).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Como os números são calculados" })
+    ).toBeVisible()
+  })
+})
+
+describe("AnaliseSaude: taxa e regra do ranking na metodologia (TU-17, CA-03.14)", () => {
+  it("a taxa e a regra do ranking aparecem uma vez cada, só dentro da metodologia aberta", async () => {
+    const usuario = userEvent.setup()
+    renderizar()
+    const taxa = TEXTOS_SAUDE.taxa
+    const regra = TEXTOS_SAUDE.regraRanking
+    expect(screen.queryByText(taxa)).toBeNull()
+    expect(screen.queryByText(regra)).toBeNull()
+
+    await usuario.click(
+      screen.getByRole("button", { name: "Como os números são calculados" })
+    )
+
+    expect(screen.getAllByText(taxa)).toHaveLength(1)
+    expect(screen.getAllByText(regra)).toHaveLength(1)
     expect(screen.queryByText(/por 100/i)).toBeNull()
-    expect(screen.queryByText(/%/)).toBeNull()
+    await abrirAbaTabela()
     expect(screen.queryByRole("columnheader", { name: /taxa/i })).toBeNull()
   })
 })

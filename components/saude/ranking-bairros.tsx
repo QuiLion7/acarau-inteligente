@@ -1,4 +1,3 @@
-import { TEXTOS_SAUDE } from "@/lib/config/textos-saude"
 import type { ItemDoRanking } from "@/lib/saude/ranking"
 import type { BairroResumo } from "@/lib/territorio/artefato-schema"
 import { cn } from "@/lib/utils"
@@ -12,8 +11,8 @@ type RankingBairrosProps = {
 
 const formatadorDeNumero = new Intl.NumberFormat("pt-BR")
 
-// Ranking dos bairros com dados (RF-02.33, CA-02.22): a regra de ordenação está escrita, o zero informado entra no
-// fim e quem está sem dados é citado à parte, fora da ordem.
+// Ranking dos bairros com dados (RF-02.33, CA-02.22): o zero informado entra no fim e quem está sem dados é citado à
+// parte, fora da ordem. A regra de ordenação está escrita na metodologia (RF-03.12).
 export function RankingBairros({
   ranking,
   semDados,
@@ -25,9 +24,6 @@ export function RankingBairros({
       <h3 id="titulo-ranking" className="text-lg font-semibold">
         Ranking dos bairros
       </h3>
-      <p className="text-sm text-muted-foreground">
-        {TEXTOS_SAUDE.regraRanking}
-      </p>
       {ranking.length === 0 ? (
         <p>Nenhum bairro tem dados no período.</p>
       ) : (
