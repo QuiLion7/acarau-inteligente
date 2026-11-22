@@ -7,6 +7,12 @@ export const TEXTOS_TERRITORIO = {
     "A demonstração cobre os 24 bairros (Unidades de Vizinhança) da sede de Acaraú. Localidades da zona rural não estão nessa cobertura.",
   bairroSemEscola:
     "Nenhuma escola da base disponível dentro deste bairro. A base não é um censo completo.",
+  buscaEscolaRotulo: "Buscar escola",
+  buscaEscolaDica: "Nome ou código INEP",
+  limparFiltros: "Limpar filtros",
+  escolasSemResultadoTitulo: "Nenhuma escola encontrada",
+  escolasSemResultado:
+    "Nenhuma escola da base corresponde à busca e aos filtros escolhidos.",
   escolaForaDoLimite:
     "Coordenada fora do limite municipal - possível inconsistência na fonte.",
   escolaSemLocalizacao:
