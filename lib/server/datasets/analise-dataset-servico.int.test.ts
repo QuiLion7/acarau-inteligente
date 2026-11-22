@@ -58,6 +58,7 @@ describe("montarAnaliseDataset", () => {
       id: v1.versaoId,
       numero: 1,
       situacao: "publicado",
+      granularidade: "ano",
     })
     expect(analise.dataset).toEqual({
       nome: "Roteiro 2025-2026",
