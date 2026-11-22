@@ -11,3 +11,7 @@ export const RECORTE_TERRITORIAL = "Bairros da sede"
 
 export const DESCRICAO_PRODUTO =
   "Demonstração independente que organiza dados territoriais e setoriais agregados de Acaraú em mapas, indicadores e relatórios, sempre com a procedência de cada informação."
+
+// Confirmação do reset na Administração (RF-04.32): diz tudo o que é apagado e o que volta.
+export const TEXTO_RESET_DEMO =
+  "Reiniciar a demonstração apaga os datasets importados e as obras cadastradas, com seus históricos, e restaura o dataset e as obras de exemplo. Bairros, escolas e camadas não mudam."

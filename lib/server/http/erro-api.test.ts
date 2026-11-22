@@ -40,6 +40,7 @@ describe("respostaDeErro", () => {
     ["ORIGEM_INVALIDA", 403],
     ["NAO_ENCONTRADO", 404],
     ["CONTEUDO_JA_IMPORTADO", 409],
+    ["LIMITE_OBRAS", 409],
     ["ARQUIVO_GRANDE_DEMAIS", 413],
     ["IMPORTACAO_INVALIDA", 422],
     ["LOGIN_BLOQUEADO", 429],
@@ -47,5 +48,11 @@ describe("respostaDeErro", () => {
     ["SERVICO_INDISPONIVEL", 503],
   ] as const)("o código %s responde com status %s", (code, status) => {
     expect(new ErroApi(code).status).toBe(status)
+  })
+
+  it("o limite de obras responde com a mensagem do PRD, que manda reiniciar a demonstração", () => {
+    expect(new ErroApi("LIMITE_OBRAS").message).toBe(
+      "A demonstração aceita até 200 obras. Reinicie a demonstração para liberar espaço."
+    )
   })
 })

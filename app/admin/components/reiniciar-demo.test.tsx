@@ -15,7 +15,7 @@ jest.mock("@/lib/api/demo-client", () => ({
 }))
 
 const TEXTO_DO_RESET =
-  "Reiniciar a demonstração apaga os datasets importados e restaura o dataset de exemplo. Bairros, escolas e camadas não mudam."
+  "Reiniciar a demonstração apaga os datasets importados e as obras cadastradas, com seus históricos, e restaura o dataset e as obras de exemplo. Bairros, escolas e camadas não mudam."
 
 beforeEach(() => {
   jest.clearAllMocks()

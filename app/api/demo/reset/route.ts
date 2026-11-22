@@ -4,13 +4,13 @@ import { ErroApi } from "@/lib/server/http/erro-api"
 import { rotaApi } from "@/lib/server/http/rota-api"
 import { log } from "@/lib/server/log"
 
-// Reinicia a demonstração (RF-02.43): só o administrador, com `Origin` conferida; o analista recebe 403. Sem corpo,
+// Reinicia a demonstração (RF-02.43, RF-04.31): datasets e obras; só o administrador, com `Origin` conferida; o analista recebe 403. Sem corpo,
 // responde 204, e repetir leva ao mesmo estado (CA-02.29).
 export const POST = rotaApi(
   async (_request, { requestId, sessao, agora }) => {
     // `papel` garante a sessão; sem ela o `rotaApi` já respondeu 401.
     if (!sessao) throw new ErroApi("NAO_AUTENTICADO")
-    const { datasetsRemovidos } = await reiniciarDemonstracao(
+    const { datasetsRemovidos, obrasRemovidas } = await reiniciarDemonstracao(
       obterBanco(),
       agora
     )
@@ -18,6 +18,7 @@ export const POST = rotaApi(
       requestId,
       usuario: sessao.usuario,
       datasetsRemovidos,
+      obrasRemovidas,
     })
     return new Response(null, { status: 204 })
   },

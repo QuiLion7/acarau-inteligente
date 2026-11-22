@@ -47,6 +47,21 @@ describe("página da área do analista", () => {
     expect(screen.queryByRole("button")).toBeNull()
   })
 
+  it("tem a seção Obras com o atalho que leva ao cadastro com o formulário aberto (RF-04.33, CA-04.22)", async () => {
+    jest
+      .mocked(exigirPapelNaPagina)
+      .mockResolvedValue({ tipo: "ok", sessao: SESSAO })
+
+    render(await PaginaAnalista())
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Obras" })
+    ).toBeVisible()
+    expect(
+      screen.getByRole("link", { name: "Cadastrar obra" })
+    ).toHaveAttribute("href", "/obras?nova=1")
+  })
+
   it("mostra o estado sem permissão quando o papel não basta", async () => {
     jest
       .mocked(exigirPapelNaPagina)

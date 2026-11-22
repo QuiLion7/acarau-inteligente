@@ -1,8 +1,11 @@
 import { sql } from "drizzle-orm"
 import {
+  bigint,
   bigserial,
   boolean,
   check,
+  date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -13,6 +16,12 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
+
+import {
+  CATEGORIAS_OBRA,
+  ESTADOS_LOCALIZACAO_OBRA,
+  SITUACOES_OBRA,
+} from "@/lib/obras/situacao-obra"
 
 const instante = (nome: string) => timestamp(nome, { withTimezone: true })
 
@@ -139,6 +148,108 @@ export const datasetLinha = pgTable(
   ]
 )
 
+// Valores dos catálogos como lista para o `in (...)` do `check`: vêm de constantes do código, nunca de entrada.
+const listaSql = (valores: readonly string[]) =>
+  sql.raw(valores.map((valor) => `'${valor}'`).join(", "))
+
+// Obras da demo (TechSpec EP-04 §4.5, DV-42, DV-43). Só dado sintético, como o `dataset`. O bairro é gravado na
+// escrita (DEC-T-09). `criado_por`/`atualizado_por` guardam o usuário da conta e não vão ao cliente.
+export const obra = pgTable(
+  "obra",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    titulo: text("titulo").notNull(),
+    descricao: text("descricao"),
+    categoria: text("categoria"),
+    secretaria: text("secretaria"),
+    situacao: text("situacao").notNull(),
+    dataInicio: date("data_inicio", { mode: "string" }),
+    dataPrevista: date("data_prevista", { mode: "string" }),
+    // Centavos: sem ponto flutuante em dinheiro (DEC-T-07).
+    valorPrevistoCentavos: bigint("valor_previsto_centavos", {
+      mode: "number",
+    }),
+    longitude: doublePrecision("longitude"),
+    latitude: doublePrecision("latitude"),
+    estadoLocalizacao: text("estado_localizacao").notNull(),
+    bairroId: text("bairro_id"),
+    proveniencia: text("proveniencia").notNull().default("SINTETICO"),
+    // Só nas obras de exemplo (`DEMO-01`): a carga idempotente usa `on conflict` nesta coluna (DEC-T-08).
+    codigoExemplo: text("codigo_exemplo"),
+    criadoPor: text("criado_por").notNull(),
+    criadoEm: instante("criado_em").notNull().defaultNow(),
+    atualizadoPor: text("atualizado_por").notNull(),
+    atualizadoEm: instante("atualizado_em").notNull().defaultNow(),
+  },
+  (tabela) => [
+    unique("obra_codigo_exemplo_unico").on(tabela.codigoExemplo),
+    index("obra_atualizado_em_idx").on(tabela.atualizadoEm),
+    check(
+      "obra_situacao_valida",
+      sql`${tabela.situacao} in (${listaSql(SITUACOES_OBRA)})`
+    ),
+    check(
+      "obra_categoria_valida",
+      sql`${tabela.categoria} is null or ${tabela.categoria} in (${listaSql(CATEGORIAS_OBRA)})`
+    ),
+    check("obra_valor_nao_negativo", sql`${tabela.valorPrevistoCentavos} >= 0`),
+    check(
+      "obra_coordenadas_juntas",
+      sql`(${tabela.longitude} is null) = (${tabela.latitude} is null)`
+    ),
+    check(
+      "obra_estado_localizacao_valido",
+      sql`${tabela.estadoLocalizacao} in (${listaSql(ESTADOS_LOCALIZACAO_OBRA)})`
+    ),
+    check(
+      "obra_sem_localizacao_coerente",
+      sql`(${tabela.estadoLocalizacao} = 'sem-localizacao') = (${tabela.longitude} is null)`
+    ),
+    check(
+      "obra_bairro_coerente",
+      sql`(${tabela.bairroId} is not null) = (${tabela.estadoLocalizacao} = 'dentro-de-bairro')`
+    ),
+    check(
+      "obra_proveniencia_sintetico",
+      sql`${tabela.proveniencia} = 'SINTETICO'`
+    ),
+    check(
+      "obra_datas_coerentes",
+      sql`${tabela.dataInicio} is null or ${tabela.dataPrevista} is null or ${tabela.dataPrevista} >= ${tabela.dataInicio}`
+    ),
+  ]
+)
+
+// Histórico de situação (RN-04.10): só se insere. Nenhum código faz `update`/`delete` aqui; o único caminho de
+// remoção é o cascade do reset (RF-04.28).
+export const obraHistorico = pgTable(
+  "obra_historico",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    obraId: uuid("obra_id")
+      .notNull()
+      .references(() => obra.id, { onDelete: "cascade" }),
+    situacaoAnterior: text("situacao_anterior"),
+    situacaoNova: text("situacao_nova").notNull(),
+    autorNome: text("autor_nome").notNull(),
+    registradoEm: instante("registrado_em").notNull().defaultNow(),
+  },
+  (tabela) => [
+    index("obra_historico_obra_registrado_em_idx").on(
+      tabela.obraId,
+      tabela.registradoEm
+    ),
+    check(
+      "obra_historico_situacao_anterior_valida",
+      sql`${tabela.situacaoAnterior} is null or ${tabela.situacaoAnterior} in (${listaSql(SITUACOES_OBRA)})`
+    ),
+    check(
+      "obra_historico_situacao_nova_valida",
+      sql`${tabela.situacaoNova} in (${listaSql(SITUACOES_OBRA)})`
+    ),
+  ]
+)
+
 export type Sessao = typeof sessao.$inferSelect
 export type NovaSessao = typeof sessao.$inferInsert
 export type TentativaLogin = typeof tentativaLogin.$inferSelect
@@ -149,3 +260,7 @@ export type DatasetVersao = typeof datasetVersao.$inferSelect
 export type NovaDatasetVersao = typeof datasetVersao.$inferInsert
 export type DatasetLinha = typeof datasetLinha.$inferSelect
 export type NovaDatasetLinha = typeof datasetLinha.$inferInsert
+export type ObraLinha = typeof obra.$inferSelect
+export type NovaObraLinha = typeof obra.$inferInsert
+export type ObraHistoricoLinha = typeof obraHistorico.$inferSelect
+export type NovaObraHistoricoLinha = typeof obraHistorico.$inferInsert

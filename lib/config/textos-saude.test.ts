@@ -60,7 +60,6 @@ const TEXTOS = [
   TEXTOS_SAUDE.taxa,
   TEXTOS_SAUDE.total(1),
   TEXTOS_SAUDE.total(18),
-  TEXTOS_SAUDE.reset,
   TEXTOS_SAUDE.regraRanking,
   TEXTOS_SAUDE.classeUnica,
   TEXTOS_SAUDE.privado,

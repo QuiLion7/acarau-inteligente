@@ -1,9 +1,9 @@
-// Estado de cobertura de cada escola e regra de fronteira (TechSpec EP-01 §4.4, RN-008). Puro, em EPSG:31984.
+// Estado de cobertura de um ponto (escola ou obra) e regra de fronteira (TechSpec EP-01 §4.4, RN-008). Puro, no mesmo sistema de coordenadas dos polígonos recebidos.
 import { localizarPonto, type MultiPoligono, type Posicao } from "./geometria"
 
 export type BairroGeometrico = { uv: number; geometria: MultiPoligono }
 
-export type AtribuicaoEscola =
+export type AtribuicaoPonto =
   | { estado: "sem-localizacao" }
   | { estado: "fora-do-limite" }
   | { estado: "fora-da-cobertura" }
@@ -18,13 +18,13 @@ export type AtribuicaoEscola =
 
 /**
  * Ordem da regra: sem posição → fora do limite → bairro de menor UV entre os que contêm
- * ou tocam o ponto → fora da cobertura. Cada escola recebe um único estado.
+ * ou tocam o ponto → fora da cobertura. Cada ponto recebe um único estado.
  */
-export function atribuirEscola(
+export function atribuirPonto(
   posicao: Posicao | null,
   limite: MultiPoligono,
   bairros: readonly BairroGeometrico[]
-): AtribuicaoEscola {
+): AtribuicaoPonto {
   if (!posicao) return { estado: "sem-localizacao" }
   if (localizarPonto(posicao, limite) === "fora") {
     return { estado: "fora-do-limite" }

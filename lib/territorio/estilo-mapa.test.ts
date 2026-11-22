@@ -5,8 +5,10 @@ import {
   CAMADAS_MAPA,
   CORES_COROPLETICO,
   ehErroDoFundo,
+  filtroDaObraSelecionada,
   FONTES_MAPA,
   ICONES_ESCOLA,
+  ICONES_OBRA,
   montarEstilo,
   visibilidadePorCamadaDoEstilo,
 } from "./estilo-mapa"
@@ -106,6 +108,135 @@ describe("montarEstilo com escolas", () => {
     expect(semEscolas.layers.map(({ id }) => id)).not.toContain(
       CAMADAS_MAPA.escolas
     )
+  })
+})
+
+describe("montarEstilo com obras (TU-07, PA-04.07)", () => {
+  const OBRAS = [
+    {
+      id: "a",
+      titulo: "Obra A",
+      situacao: "planejada",
+      longitude: -40.1,
+      latitude: -2.9,
+    },
+    {
+      id: "b",
+      titulo: "Obra B",
+      situacao: "suspensa",
+      longitude: -40.2,
+      latitude: -2.8,
+    },
+  ] as const
+  const comObras = montarEstilo({ bairros, limite, obras: OBRAS })
+  const camadaSelecionada = (estilo: ReturnType<typeof montarEstilo>) =>
+    estilo.layers.find(({ id }) => id === CAMADAS_MAPA.obrasSelecionada) as {
+      filter: unknown
+    }
+
+  it("sem a prop de obras o estilo não leva fontes nem camadas de obra, nem com escolas ou coroplético", () => {
+    const outros = [
+      montarEstilo({ bairros, limite }),
+      montarEstilo({ bairros, limite, escolas }),
+      montarEstilo({ bairros, limite, coropletico: {} }),
+    ]
+
+    for (const estilo of outros) {
+      expect(estilo.sources).not.toHaveProperty(FONTES_MAPA.obras)
+      expect(estilo.sources).not.toHaveProperty(FONTES_MAPA.obraProvisoria)
+      expect(estilo.layers.map(({ id }) => id)).not.toEqual(
+        expect.arrayContaining([CAMADAS_MAPA.obras])
+      )
+    }
+  })
+
+  it("acrescenta as fontes das obras e do ponto provisório e as três camadas no topo, nesta ordem", () => {
+    expect(comObras.sources).toHaveProperty(FONTES_MAPA.obras)
+    expect(comObras.sources).toHaveProperty(FONTES_MAPA.obraProvisoria)
+    expect(comObras.layers.map(({ id }) => id).slice(-4)).toEqual([
+      CAMADAS_MAPA.bairrosSelecao,
+      CAMADAS_MAPA.obras,
+      CAMADAS_MAPA.obrasSelecionada,
+      CAMADAS_MAPA.obraProvisoria,
+    ])
+  })
+
+  it("leva um marcador por obra recebida e o ponto provisório vazio quando não há ponto", () => {
+    const obras = comObras.sources[FONTES_MAPA.obras] as unknown as {
+      data: { features: unknown[] }
+    }
+    const provisorio = comObras.sources[
+      FONTES_MAPA.obraProvisoria
+    ] as unknown as {
+      data: { features: unknown[] }
+    }
+
+    expect(obras.data.features).toHaveLength(2)
+    expect(provisorio.data.features).toEqual([])
+  })
+
+  it("leva o ponto provisório quando ele já existe na montagem", () => {
+    const estilo = montarEstilo({
+      bairros,
+      limite,
+      obras: OBRAS,
+      pontoProvisorio: { longitude: -40.1, latitude: -2.9 },
+    })
+    const provisorio = estilo.sources[
+      FONTES_MAPA.obraProvisoria
+    ] as unknown as {
+      data: { features: unknown[] }
+    }
+
+    expect(provisorio.data.features).toHaveLength(1)
+  })
+
+  it("escolhe a imagem pela situação da obra, uma para cada situação", () => {
+    const camada = comObras.layers.find(
+      ({ id }) => id === CAMADAS_MAPA.obras
+    ) as {
+      layout: { "icon-image": unknown[]; "icon-allow-overlap": boolean }
+    }
+    const expressao = JSON.stringify(camada.layout["icon-image"])
+
+    for (const { imagem } of Object.values(ICONES_OBRA)) {
+      expect(expressao).toContain(imagem)
+    }
+    expect(camada.layout["icon-allow-overlap"]).toBe(true)
+  })
+
+  it("a camada de destaque filtra pelo id da obra selecionada e, sem seleção, não pega nenhuma", () => {
+    const selecionada = montarEstilo({
+      bairros,
+      limite,
+      obras: OBRAS,
+      obraSelecionadaId: "b",
+    })
+
+    expect(camadaSelecionada(selecionada).filter).toEqual(
+      filtroDaObraSelecionada("b")
+    )
+    expect(camadaSelecionada(selecionada).filter).toEqual([
+      "==",
+      ["get", "id"],
+      "b",
+    ])
+    expect(camadaSelecionada(comObras).filter).toEqual([
+      "==",
+      ["get", "id"],
+      "",
+    ])
+  })
+
+  it("todas as camadas com fonte apontam para uma fonte existente", () => {
+    const estilo = montarEstilo({ bairros, limite, escolas, obras: OBRAS })
+    const fontesUsadas = estilo.layers.flatMap((camada) =>
+      "source" in camada ? [camada.source] : []
+    )
+
+    for (const fonte of fontesUsadas) {
+      expect(estilo.sources).toHaveProperty(fonte)
+    }
   })
 })
 

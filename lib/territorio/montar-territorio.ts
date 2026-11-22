@@ -11,10 +11,10 @@ import {
   type QualidadeEscolas,
 } from "./artefato-schema"
 import {
-  atribuirEscola,
-  type AtribuicaoEscola,
+  atribuirPonto,
+  type AtribuicaoPonto,
   type BairroGeometrico,
-} from "./atribuicao-escolas"
+} from "./atribuicao-ponto"
 import {
   areaMultiPoligono,
   calcularBbox,
@@ -107,7 +107,7 @@ function montarLimite(
 function montarEscola(
   linha: LinhaEscolaCsv,
   posicaoFonte: Posicao | null,
-  atribuicao: AtribuicaoEscola,
+  atribuicao: AtribuicaoPonto,
   versao: string
 ) {
   return {
@@ -157,7 +157,7 @@ function classificarEscolas(
   )
   for (const linha of catalogo) {
     const posicao = posicaoPorInep.get(linha.codigoInep) ?? null
-    const atribuicao = atribuirEscola(posicao, limite, bairros)
+    const atribuicao = atribuirPonto(posicao, limite, bairros)
     escolas.push(
       montarEscola(linha, posicao, atribuicao, insumos.versoes.csvEscolas)
     )

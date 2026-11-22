@@ -55,10 +55,14 @@ describe("scripts/migrar.mjs", () => {
   beforeAll(() =>
     comAdmin((cliente) => cliente.query(`create database "${nomeBancoVazio}"`))
   )
-  afterAll(() =>
-    comAdmin((cliente) =>
-      cliente.query(`drop database if exists "${nomeBancoVazio}" with (force)`)
-    )
+  afterAll(
+    () =>
+      comAdmin((cliente) =>
+        cliente.query(
+          `drop database if exists "${nomeBancoVazio}" with (force)`
+        )
+      ),
+    30_000
   )
 
   // TI-01
@@ -73,7 +77,7 @@ describe("scripts/migrar.mjs", () => {
     expect(primeira.status).toBe(0)
     expect(JSON.parse(primeira.stdout)).toMatchObject({
       evento: "db.migracao",
-      aplicadas: 2,
+      aplicadas: 3,
     })
     expect(depoisDaPrimeira.colunas).toEqual(
       expect.arrayContaining([
@@ -81,6 +85,8 @@ describe("scripts/migrar.mjs", () => {
         "tentativa_login.ocorrida_em:timestamp with time zone",
         "dataset_versao.hash_conteudo:text",
         "dataset_linha.bairro_id:text",
+        "obra.valor_previsto_centavos:bigint",
+        "obra_historico.situacao_nova:text",
       ])
     )
     expect(segunda.status).toBe(0)

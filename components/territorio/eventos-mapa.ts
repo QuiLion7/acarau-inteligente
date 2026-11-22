@@ -6,12 +6,14 @@ import {
   ESTADO_BAIRRO,
   FONTES_MAPA,
   ICONES_ESCOLA,
+  ICONES_OBRA,
   IMAGEM_SEM_DADOS,
 } from "@/lib/territorio/estilo-mapa"
 import {
   desenharHachuraSemDados,
-  desenharIconeEscola,
+  desenharIcone,
 } from "@/lib/territorio/imagens-mapa"
+import type { PontoObra } from "@/lib/validations/obra-schema"
 
 // Registros de evento do mapa do Território, um por conceito (DV-28). Cada função só liga os ouvintes; quem monta o
 // mapa decide o que fazer com o resultado.
@@ -39,7 +41,13 @@ export function marcarEstado(
 
 function registrarIconesDeEscola(mapa: MapaMapLibre) {
   for (const icone of Object.values(ICONES_ESCOLA)) {
-    mapa.addImage(icone.imagem, desenharIconeEscola(icone))
+    mapa.addImage(icone.imagem, desenharIcone(icone))
+  }
+}
+
+function registrarIconesDeObra(mapa: MapaMapLibre) {
+  for (const icone of Object.values(ICONES_OBRA)) {
+    mapa.addImage(icone.imagem, desenharIcone(icone))
   }
 }
 
@@ -84,11 +92,18 @@ export function registrarEventosDeBairro(
     mapa.getCanvas().style.cursor = ""
   })
   mapa.on("click", CAMADAS_MAPA.bairrosPreenchimento, (evento) => {
-    // Marcador de escola sobre o bairro: o clique é da escola, não do bairro.
-    const escolasNoPonto = mapa.queryRenderedFeatures(evento.point, {
-      layers: [CAMADAS_MAPA.escolas],
-    })
-    if (escolasNoPonto.length > 0) return
+    // Marcador de escola ou de obra sobre o bairro: o clique é do marcador, não do bairro. Só se consultam as
+    // camadas que o estilo tem (o MapLibre recusa consultar camada ausente).
+    const camadasDeMarcador = [CAMADAS_MAPA.escolas, CAMADAS_MAPA.obras].filter(
+      (camada) => mapa.getLayer(camada)
+    )
+    if (
+      camadasDeMarcador.length > 0 &&
+      mapa.queryRenderedFeatures(evento.point, { layers: camadasDeMarcador })
+        .length > 0
+    ) {
+      return
+    }
     const id = propriedadeTexto(evento.features?.[0], "id")
     if (id !== null) ouvintes.aoSelecionar(id)
   })
@@ -108,6 +123,39 @@ export function registrarEventosDeEscola(
   })
   mapa.on("mouseleave", CAMADAS_MAPA.escolas, () => {
     mapa.getCanvas().style.cursor = ""
+  })
+}
+
+export function registrarEventosDeObra(
+  mapa: MapaMapLibre,
+  ouvintes: { aoAbrir: (obraId: string) => void }
+) {
+  mapa.on("style.load", () => registrarIconesDeObra(mapa))
+  mapa.on("click", CAMADAS_MAPA.obras, (evento) => {
+    const id = propriedadeTexto(evento.features?.[0], "id")
+    if (id !== null) ouvintes.aoAbrir(id)
+  })
+  mapa.on("mouseenter", CAMADAS_MAPA.obras, () => {
+    mapa.getCanvas().style.cursor = "pointer"
+  })
+  mapa.on("mouseleave", CAMADAS_MAPA.obras, () => {
+    mapa.getCanvas().style.cursor = ""
+  })
+}
+
+/**
+ * Clique em qualquer ponto do mapa devolve a coordenada (RF-04.16). Quem monta o mapa decide quando isso vale: com o
+ * formulário fechado o ouvinte ignora o ponto, e o clique em bairro e em obra também é ignorado.
+ */
+export function registrarCliqueLivre(
+  mapa: MapaMapLibre,
+  ouvintes: { aoEscolher: (ponto: PontoObra) => void }
+) {
+  mapa.on("click", (evento) => {
+    ouvintes.aoEscolher({
+      longitude: evento.lngLat.lng,
+      latitude: evento.lngLat.lat,
+    })
   })
 }
 

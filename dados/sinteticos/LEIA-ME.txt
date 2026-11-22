@@ -20,6 +20,13 @@ PRE-CARREGADO
     18 bairros com nomes na grafia oficial (nenhuma decisao pendente); os outros 6 bairros ficam sem linha e a
     Saude os mostra como "sem dados". Tem um zero explicito (Rodagem em 2026). Numeros ficticios, sem erro.
 
+OBRAS PRE-CARREGADAS
+  obras-pre-carregadas_DEMO.json
+    8 obras de exemplo (DEMO-01 a DEMO-08) que a demonstracao grava sozinha na subida do servidor e no reset da
+    Administracao, com o historico de situacao de cada uma e datas fixas (o reset devolve exatamente o mesmo estado).
+    Titulos genericos, sem empresa nem contrato. As 4 situacoes estao presentes; DEMO-07 fica no municipio e fora dos
+    bairros da sede; DEMO-08 nao tem localizacao. O bairro nao esta no arquivo: sai do ponto, pela mesma regra do app.
+
 ADVERSOS (adversos/): cada arquivo e recusado, ou aponta erro, pelo motivo do proprio nome
   sem-linhas_DEMO.csv                  so o cabecalho: SEM_LINHAS
   10001-linhas_DEMO.csv                10.001 linhas de dados: LINHAS_DEMAIS (o limite e 10.000)

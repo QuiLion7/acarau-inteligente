@@ -1,13 +1,18 @@
 // Desenho das imagens do mapa (ícones das escolas e hachura de "sem dados"): rasterizado em memória, sem canvas,
 // para rodar nos testes de unidade e registrar no `style.load` (TechSpec EP-03 §2, DV-33).
-import type { FormaDoIcone, IconeEscola } from "@/lib/territorio/estilo-mapa"
+import type { FormaMarcadorObra } from "@/lib/obras/situacao-obra"
+import type {
+  FormaDoIcone,
+  IconeEscola,
+  IconeObra,
+} from "@/lib/territorio/estilo-mapa"
 
 const LADO_ICONE_PX = 24
 const MEIO_LADO_ICONE = 11
 const ESPESSURA_CONTORNO_ICONE = 3
 
 const DENTRO_DA_FORMA: Record<
-  FormaDoIcone,
+  FormaDoIcone | FormaMarcadorObra,
   (dx: number, dy: number, meioLado: number) => boolean
 > = {
   circulo: (dx, dy, meioLado) => Math.hypot(dx, dy) <= meioLado,
@@ -16,6 +21,7 @@ const DENTRO_DA_FORMA: Record<
   // Ponta para cima: a meia-largura cresce de 0 no topo até `meioLado` na base.
   triangulo: (dx, dy, meioLado) =>
     dy >= -meioLado && dy <= meioLado && Math.abs(dx) <= (dy + meioLado) / 2,
+  losango: (dx, dy, meioLado) => Math.abs(dx) + Math.abs(dy) <= meioLado,
 }
 
 function rgbDeHex(cor: string): [number, number, number] {
@@ -25,8 +31,8 @@ function rgbDeHex(cor: string): [number, number, number] {
 
 export type ImagemRgba = { width: number; height: number; data: Uint8Array }
 
-/** Rasteriza o ícone (forma preenchida com contorno branco, fundo transparente), sem depender de canvas. */
-export function desenharIconeEscola(icone: IconeEscola): ImagemRgba {
+/** Rasteriza o ícone de escola ou de obra (forma preenchida com contorno branco, fundo transparente), sem depender de canvas. */
+export function desenharIcone(icone: IconeEscola | IconeObra): ImagemRgba {
   const dentro = DENTRO_DA_FORMA[icone.forma]
   const [vermelho, verde, azul] = rgbDeHex(icone.cor)
   const centro = (LADO_ICONE_PX - 1) / 2

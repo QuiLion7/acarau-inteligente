@@ -1,7 +1,11 @@
 // Estilo do mapa do Território (TechSpec EP-01 §2, §6; DV-20): montado no app, com a camada `background` neutra
 // por baixo do raster do OpenStreetMap. Se o fundo falhar, o neutro e as camadas da demonstração seguem visíveis.
 // Só tipos do MapLibre aqui: o módulo não carrega a biblioteca e roda nos testes de unidade.
-import type { LayerSpecification, StyleSpecification } from "maplibre-gl"
+import type {
+  FilterSpecification,
+  LayerSpecification,
+  StyleSpecification,
+} from "maplibre-gl"
 
 import { MAPA_BASE } from "@/lib/config/mapa-base"
 import type {
@@ -13,13 +17,26 @@ import type {
 import {
   bairrosParaGeoJson,
   escolasParaGeoJson,
+  type ObraNoMapa,
+  obrasParaGeoJson,
+  pontoProvisorioParaGeoJson,
 } from "@/lib/territorio/geojson-mapa"
+import {
+  FORMA_MARCADOR_OBRA,
+  ROTULO_SITUACAO_OBRA,
+  SITUACOES_OBRA,
+  type FormaMarcadorObra,
+  type SituacaoObra,
+} from "@/lib/obras/situacao-obra"
+import type { PontoObra } from "@/lib/validations/obra-schema"
 
 export const FONTES_MAPA = {
   fundo: "mapa-base",
   limite: "limite-municipal",
   bairros: "bairros",
   escolas: "escolas",
+  obras: "obras",
+  obraProvisoria: "obra-provisoria",
 } as const
 
 export const CAMADAS_MAPA = {
@@ -33,6 +50,9 @@ export const CAMADAS_MAPA = {
   bairrosLinha: "bairros-linha",
   bairrosSelecao: "bairros-selecao",
   escolas: "escolas-marcadores",
+  obras: "obras-marcadores",
+  obrasSelecionada: "obras-selecionada",
+  obraProvisoria: "obra-provisoria",
 } as const
 
 /** Paleta sequencial do coroplético (TechSpec EP-02 §4.5), do claro ao escuro; a legenda usa as mesmas cores. */
@@ -62,6 +82,13 @@ export const CORES_MAPA = {
   // Borda de todo polígono no coroplético: o limite entre classes nunca depende só da cor de preenchimento (DEC-T-08).
   bordaCoropletico: "#1f2937",
   zeroPreenchimento: "#ffffff",
+  obraPlanejada: "#0e7490",
+  obraEmAndamento: "#a16207",
+  obraConcluida: "#166534",
+  obraSuspensa: "#4b5563",
+  // Destaque da obra selecionada e ponto provisório do formulário: contorno escuro, nunca só uma cor (DV-20).
+  obraDestaque: "#0b2540",
+  obraProvisoria: "#ffffff",
 } as const
 
 /** Imagem da hachura de "sem dados", registrada no `style.load` (o `fill-pattern` não aceita `feature-state`). */
@@ -85,6 +112,10 @@ const LARGURA_LINHA_ZERO = 3
 const TRACEJADO_ZERO = [2, 2]
 const LARGURA_LINHA_BAIRRO = 1.5
 const LARGURA_LINHA_SELECAO = 4
+const RAIO_DESTAQUE_OBRA_PX = 16
+const LARGURA_DESTAQUE_OBRA_PX = 3
+const RAIO_PONTO_PROVISORIO_PX = 9
+const LARGURA_PONTO_PROVISORIO_PX = 4
 const LARGURA_LINHA_LIMITE = 2
 const TRACEJADO_LIMITE = [3, 2]
 
@@ -124,6 +155,31 @@ export const CAMADAS_CONTROLAVEIS: readonly CamadaControlavel[] = [
     camadasDoEstilo: [CAMADAS_MAPA.escolas],
   },
 ]
+
+export type IconeObra = {
+  /** Nome da imagem registrada no mapa. */
+  imagem: string
+  forma: FormaMarcadorObra
+  cor: string
+  rotulo: string
+}
+
+function iconeDeObra(situacao: SituacaoObra, cor: string): IconeObra {
+  return {
+    imagem: `obra-${situacao}`,
+    forma: FORMA_MARCADOR_OBRA[situacao],
+    cor,
+    rotulo: `Obra ${ROTULO_SITUACAO_OBRA[situacao].toLowerCase()}`,
+  }
+}
+
+/** Um ícone por situação: forma (catálogo de `situacao-obra`) e cor diferentes; a legenda usa as mesmas constantes. */
+export const ICONES_OBRA: Record<SituacaoObra, IconeObra> = {
+  planejada: iconeDeObra("planejada", CORES_MAPA.obraPlanejada),
+  em_andamento: iconeDeObra("em_andamento", CORES_MAPA.obraEmAndamento),
+  concluida: iconeDeObra("concluida", CORES_MAPA.obraConcluida),
+  suspensa: iconeDeObra("suspensa", CORES_MAPA.obraSuspensa),
+}
 
 export type EstadoComMarcador = Exclude<EstadoEscola, "sem-localizacao">
 export type FormaDoIcone = "circulo" | "quadrado" | "triangulo"
@@ -171,6 +227,13 @@ export type DadosDoMapa = {
   escolas?: readonly Escola[]
   /** Sem isto o mapa tem exatamente as camadas do Território; com isto, as do coroplético da Saúde. */
   coropletico?: DadosCoropletico
+  /**
+   * Obras com ponto (EP-04). Presente, o estilo leva as fontes e as camadas de obra (marcadores, destaque da
+   * selecionada e ponto provisório); ausente, o mapa é exatamente o dos outros módulos (PA-04.07).
+   */
+  obras?: readonly ObraNoMapa[]
+  obraSelecionadaId?: string | null
+  pontoProvisorio?: PontoObra | null
 }
 
 function emFeatureState(estado: string, comEstado: number, semEstado: number) {
@@ -202,6 +265,64 @@ const CAMADA_DE_ESCOLAS = {
 } as LayerSpecification
 
 const SITUACAO = ["get", "situacao"]
+
+// `match` da situação da obra para o nome da imagem registrada no mapa; a última entrada é só o valor padrão exigido.
+const IMAGEM_POR_SITUACAO_OBRA = [
+  "match",
+  SITUACAO,
+  ...SITUACOES_OBRA.flatMap((situacao) => [
+    situacao,
+    ICONES_OBRA[situacao].imagem,
+  ]),
+  ICONES_OBRA.planejada.imagem,
+]
+
+/** Filtro da camada de destaque: só a feature da obra selecionada; sem seleção, nenhuma (nenhuma obra tem id vazio). */
+export function filtroDaObraSelecionada(
+  obraId: string | null
+): FilterSpecification {
+  return ["==", ["get", "id"], obraId ?? ""]
+}
+
+function camadasDeObras(
+  obraSelecionadaId: string | null
+): LayerSpecification[] {
+  return [
+    {
+      id: CAMADAS_MAPA.obras,
+      type: "symbol",
+      source: FONTES_MAPA.obras,
+      layout: {
+        "icon-image": IMAGEM_POR_SITUACAO_OBRA,
+        "icon-allow-overlap": true,
+      },
+    },
+    {
+      // Anel escuro em volta do marcador selecionado: o destaque não depende só da cor (DV-20, CA-04.27).
+      id: CAMADAS_MAPA.obrasSelecionada,
+      type: "circle",
+      source: FONTES_MAPA.obras,
+      filter: filtroDaObraSelecionada(obraSelecionadaId),
+      paint: {
+        "circle-radius": RAIO_DESTAQUE_OBRA_PX,
+        "circle-color": "rgba(0, 0, 0, 0)",
+        "circle-stroke-color": CORES_MAPA.obraDestaque,
+        "circle-stroke-width": LARGURA_DESTAQUE_OBRA_PX,
+      },
+    },
+    {
+      id: CAMADAS_MAPA.obraProvisoria,
+      type: "circle",
+      source: FONTES_MAPA.obraProvisoria,
+      paint: {
+        "circle-radius": RAIO_PONTO_PROVISORIO_PX,
+        "circle-color": CORES_MAPA.obraProvisoria,
+        "circle-stroke-color": CORES_MAPA.obraDestaque,
+        "circle-stroke-width": LARGURA_PONTO_PROVISORIO_PX,
+      },
+    },
+  ] as LayerSpecification[]
+}
 
 // Cor da classe pelo índice (1 a 5); zero informado fica branco; o resto não é pintado por esta camada.
 const COR_DA_CLASSE = [
@@ -248,10 +369,17 @@ function camadasDoCoropletico(): LayerSpecification[] {
   ] as LayerSpecification[]
 }
 
-function camadasDoEstilo(
-  comEscolas: boolean,
+type OpcoesDoEstilo = {
+  comEscolas: boolean
   comCoropletico: boolean
-): LayerSpecification[] {
+  obras: { selecionadaId: string | null } | null
+}
+
+function camadasDoEstilo({
+  comEscolas,
+  comCoropletico,
+  obras,
+}: OpcoesDoEstilo): LayerSpecification[] {
   const camadas = [
     {
       id: CAMADAS_MAPA.fundoNeutro,
@@ -315,15 +443,22 @@ function camadasDoEstilo(
       },
     },
   ] as LayerSpecification[]
-  return comEscolas ? [...camadas, CAMADA_DE_ESCOLAS] : camadas
+  return [
+    ...camadas,
+    ...(comEscolas ? [CAMADA_DE_ESCOLAS] : []),
+    ...(obras ? camadasDeObras(obras.selecionadaId) : []),
+  ]
 }
 
-/** Estilo completo: `background`, raster do OSM, limite, bairros e escolas, nesta ordem (de baixo para cima). */
+/** Estilo completo: `background`, raster do OSM, limite, bairros, escolas e obras, nesta ordem (de baixo para cima). */
 export function montarEstilo({
   bairros,
   limite,
   escolas,
   coropletico,
+  obras,
+  obraSelecionadaId = null,
+  pontoProvisorio = null,
 }: DadosDoMapa): StyleSpecification {
   return {
     version: 8,
@@ -354,8 +489,22 @@ export function montarEstilo({
           data: escolasParaGeoJson(escolas),
         },
       }),
+      ...(obras && {
+        [FONTES_MAPA.obras]: {
+          type: "geojson" as const,
+          data: obrasParaGeoJson(obras),
+        },
+        [FONTES_MAPA.obraProvisoria]: {
+          type: "geojson" as const,
+          data: pontoProvisorioParaGeoJson(pontoProvisorio),
+        },
+      }),
     },
-    layers: camadasDoEstilo(escolas !== undefined, coropletico !== undefined),
+    layers: camadasDoEstilo({
+      comEscolas: escolas !== undefined,
+      comCoropletico: coropletico !== undefined,
+      obras: obras ? { selecionadaId: obraSelecionadaId } : null,
+    }),
   }
 }
 

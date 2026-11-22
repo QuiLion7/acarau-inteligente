@@ -21,6 +21,11 @@ const CATALOGO = {
     status: 409,
     mensagem: "Este arquivo já foi importado.",
   },
+  LIMITE_OBRAS: {
+    status: 409,
+    mensagem:
+      "A demonstração aceita até 200 obras. Reinicie a demonstração para liberar espaço.",
+  },
   ARQUIVO_GRANDE_DEMAIS: {
     status: 413,
     mensagem: "O arquivo é maior que o limite de 5 MB.",

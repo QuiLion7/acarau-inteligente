@@ -5,12 +5,16 @@ import {
   listarDatasetsPublicados,
   type DatasetPublicado,
 } from "@/lib/server/datasets/dataset-repositorio"
+import { resumirObrasParaFontes } from "@/lib/server/obras/obra-repositorio"
 
 jest.mock("@/lib/server/db/cliente", () => ({
   obterBanco: jest.fn(() => ({})),
 }))
 jest.mock("@/lib/server/datasets/dataset-repositorio", () => ({
   listarDatasetsPublicados: jest.fn(),
+}))
+jest.mock("@/lib/server/obras/obra-repositorio", () => ({
+  resumirObrasParaFontes: jest.fn(),
 }))
 
 const PUBLICADO: DatasetPublicado = {
@@ -38,6 +42,10 @@ const PUBLICADO: DatasetPublicado = {
 
 beforeEach(() => {
   jest.mocked(listarDatasetsPublicados).mockResolvedValue([])
+  jest.mocked(resumirObrasParaFontes).mockResolvedValue({
+    quantidade: 8,
+    ultimaAtualizacao: "2026-11-15T12:00:00.000Z",
+  })
 })
 
 describe("PaginaFontes", () => {
@@ -128,5 +136,30 @@ describe("PaginaFontes", () => {
     expect(
       screen.getByText("Nenhum dataset de saúde está publicado no momento.")
     ).toBeVisible()
+  })
+
+  it("lista as obras com origem sintética, quantidade, última atualização e o aviso, fora das camadas (CA-04.23)", async () => {
+    render(await PaginaFontes())
+
+    const secao = screen.getByRole("region", { name: "Obras cadastradas" })
+    expect(secao).toHaveTextContent("SINTETICO")
+    expect(secao).toHaveTextContent("Origem:Sintética: criadas na demonstração")
+    expect(secao).toHaveTextContent("Quantidade:8 obras")
+    expect(secao).toHaveTextContent("Última atualização:15/11/2026 09:00")
+    expect(secao).toHaveTextContent("Não são obras municipais")
+    // Obra não é camada do artefato: continua só com os 4 cartões de camada (DV-21, DEC-T-11).
+    expect(screen.getAllByRole("article")).toHaveLength(4)
+  })
+
+  it("sem obra diz que não há nenhuma e não inventa data", async () => {
+    jest
+      .mocked(resumirObrasParaFontes)
+      .mockResolvedValue({ quantidade: 0, ultimaAtualizacao: null })
+
+    render(await PaginaFontes())
+
+    const secao = screen.getByRole("region", { name: "Obras cadastradas" })
+    expect(secao).toHaveTextContent("Quantidade:Nenhuma obra cadastrada")
+    expect(secao).not.toHaveTextContent("Última atualização")
   })
 })

@@ -1,13 +1,13 @@
-import { ICONES_ESCOLA } from "./estilo-mapa"
-import { desenharHachuraSemDados, desenharIconeEscola } from "./imagens-mapa"
+import { ICONES_ESCOLA, ICONES_OBRA } from "./estilo-mapa"
+import { desenharHachuraSemDados, desenharIcone } from "./imagens-mapa"
 
 function pixelsOpacos({ data }: { data: Uint8Array }) {
   return data.filter((valor, indice) => indice % 4 === 3 && valor === 255)
     .length
 }
 
-describe("desenharIconeEscola", () => {
-  const icones = Object.values(ICONES_ESCOLA).map(desenharIconeEscola)
+describe("desenharIcone", () => {
+  const icones = Object.values(ICONES_ESCOLA).map(desenharIcone)
 
   it("gera uma imagem RGBA 24x24 por estado, com fundo transparente e miolo opaco", () => {
     for (const { width, height, data } of icones) {
@@ -34,7 +34,7 @@ describe("desenharIconeEscola", () => {
   })
 
   it("o miolo usa a cor do estado e o contorno é branco", () => {
-    const { data } = desenharIconeEscola(ICONES_ESCOLA["fora-do-limite"])
+    const { data } = desenharIcone(ICONES_ESCOLA["fora-do-limite"])
     const rgbEm = (linha: number, coluna: number) => {
       const inicio = (linha * 24 + coluna) * 4
       return [...data.slice(inicio, inicio + 3)]
@@ -42,6 +42,36 @@ describe("desenharIconeEscola", () => {
 
     expect(rgbEm(12, 12)).toEqual([0xb9, 0x1c, 0x1c])
     expect(rgbEm(21, 12)).toEqual([255, 255, 255])
+  })
+})
+
+describe("desenharIcone (TU-08)", () => {
+  const imagens = Object.values(ICONES_OBRA).map(desenharIcone)
+  const emBase64 = ({ data }: { data: Uint8Array }) =>
+    Buffer.from(data).toString("base64")
+
+  it("gera quatro imagens 24x24 diferentes entre si, com fundo transparente e miolo opaco", () => {
+    for (const { width, height, data } of imagens) {
+      expect(width * height * 4).toBe(data.length)
+      expect(data[3]).toBe(0)
+      const meio = (Math.floor(height / 2) * width + Math.floor(width / 2)) * 4
+      expect(data[meio + 3]).toBe(255)
+    }
+    expect(new Set(imagens.map(emBase64)).size).toBe(4)
+  })
+
+  it("a forma já distingue a situação: com a mesma cor as quatro imagens continuam diferentes", () => {
+    const mesmaCor = Object.values(ICONES_OBRA).map((icone) =>
+      desenharIcone({ ...icone, cor: "#000000" })
+    )
+
+    expect(new Set(mesmaCor.map(emBase64)).size).toBe(4)
+  })
+
+  it("o losango da suspensa ocupa menos área que o quadrado da concluída", () => {
+    const [, , concluida, suspensa] = imagens.map(pixelsOpacos)
+
+    expect(concluida).toBeGreaterThan(suspensa!)
   })
 })
 

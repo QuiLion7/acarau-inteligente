@@ -94,8 +94,6 @@ export const TEXTOS_SAUDE = {
     sintetico:
       "Os dados são sintéticos, criados para a demonstração, e não são uma decisão oficial.",
   },
-  reset:
-    "Reiniciar a demonstração apaga os datasets importados e restaura o dataset de exemplo. Bairros, escolas e camadas não mudam.",
   regraRanking:
     "Ordem: mais casos primeiro; empate em ordem alfabética do nome do bairro.",
   classeUnica:

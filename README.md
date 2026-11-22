@@ -18,7 +18,8 @@ Aplicação web de demonstração que transforma dados territoriais e setoriais 
 | EP-01 Território e escolas | Implementado (`sdd/ep-01-territorio-escolas/tasks.md`): carga e conferência do território, mapa com bairros, limite e escolas, lista, ficha, tabelas, quadro de qualidade, mapa resumido no Início e "Fontes e limitações" com as camadas; falta a revisão e o roteiro manual de `sdd/ep-01-territorio-escolas/qa-report.md` |
 | EP-02 Importação CSV e motor analítico | Implementado (`sdd/ep-02-importacao-analises/tasks.md`): importação de CSV por assistente, datasets versionados e publicáveis, Saúde com coroplético, ranking, tabela e gráfico por período, dataset pré-carregado, reset e datasets em "Fontes e limitações"; falta a revisão e o roteiro manual de `sdd/ep-02-importacao-analises/qa-report.md` |
 | EP-03 Saúde e Educação | Implementado (`sdd/ep-03-saude-educacao/tasks.md`): Saúde com cards e variação, seletor de bairro, abas Mapa e Tabela e metodologia; página Educação com cards, mapa, tabela por bairro, lista com busca, ficha e pendências; mapa dividido em módulos por conceito; falta a revisão e o roteiro manual de `sdd/ep-03-saude-educacao/qa-report.md` |
-| EP-04 e EP-05 | Não iniciados |
+| EP-04 Obras | Implementado (`sdd/ep-04-obras/tasks.md`): página Obras com resumo, filtros por situação e bairro, mapa, lista, ficha com histórico e metodologia; cadastro e edição pelo analista com o ponto no mapa ou por coordenadas; 8 obras de exemplo, reset estendido, atalho na Área do analista e obras em "Fontes e limitações"; falta a revisão e o roteiro manual de `sdd/ep-04-obras/qa-report.md` |
+| EP-05 | Não iniciado |
 
 ## Pré-requisitos
 
@@ -109,6 +110,15 @@ O analista (ou o administrador) importa contagens de saúde por bairro e períod
 - **Bairro entre módulos:** o seletor de bairro escreve o mesmo filtro `bairro` da URL que a Saúde e o Território; o `periodo` não se aplica à Educação e é preservado ao navegar.
 - **Contagem:** no artefato, `qualidade.foraDaCobertura` (34) já inclui a escola fora do limite; a Educação a separa (33 + 1) para as quatro categorias somarem 62.
 - **Fonte e data:** vêm da camada `escolas` de "Fontes e limitações"; sem ela a página mostra "Fonte ausente" em vez de números.
+
+## Obras (EP-04)
+
+`/obras` é pública para leitura e mostra todas as obras sintéticas: faixa de dados fictícios, resumo por situação (total, as quatro situações e as sem localização), filtros por situação (chips) e bairro, mapa com um marcador por obra com ponto (forma diferente por situação), lista rolável, ficha com histórico de situação e a metodologia. O analista e o administrador veem "Nova obra" e "Editar": o formulário fica na coluna ao lado do mapa, para o clique no mapa preencher latitude e longitude; o bairro é calculado pelo servidor a partir do ponto (a prévia usa a mesma regra) e ponto fora do município não é aceito.
+
+- **Leitura e escrita:** a página lê as obras no servidor, sem `GET`; a escrita é só `POST /api/obras` e `PUT /api/obras/{id}`, com auditoria no log. Não há exclusão: só o reset remove obras. O teto da demo é de 200 obras.
+- **Obras de exemplo:** `dados/sinteticos/obras-pre-carregadas_DEMO.json` (8 obras com histórico e datas fixas) é gravado na subida e no reset, na mesma transação dos datasets. A imagem do Docker copia esse JSON. O `obras_DEMO.csv` da pasta `dados/` não é usado.
+- **Atalho:** a Área do analista leva a `/obras?nova=1`, que abre o formulário (só para quem pode editar).
+- **Testes que gravam obras:** todo spec que cria ou edita obra começa com `reiniciarDemo()`; `inserirObras(n)` (`tests/e2e/banco-e2e.ts`) monta o caso de 200 obras.
 
 ## Dados
 

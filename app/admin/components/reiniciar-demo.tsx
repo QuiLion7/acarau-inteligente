@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { useReiniciarDemo } from "@/hooks/query/use-demo"
-import { TEXTOS_SAUDE } from "@/lib/config/textos-saude"
+import { TEXTO_RESET_DEMO } from "@/lib/config/textos-demonstracao"
 
 // Reinício da demonstração (RF-02.43, PA-02.03): ação destrutiva, então pede confirmação com o que será apagado.
 // O servidor confere que é administrador; esconder o botão de quem não é só poupa o clique.
@@ -32,7 +32,7 @@ export function ReiniciarDemo() {
       <h2 id="titulo-reiniciar" className="text-xl font-semibold">
         Reiniciar a demonstração
       </h2>
-      <p className="max-w-prose text-muted-foreground">{TEXTOS_SAUDE.reset}</p>
+      <p className="max-w-prose text-muted-foreground">{TEXTO_RESET_DEMO}</p>
       <AlertDialog open={aberto} onOpenChange={setAberto}>
         <AlertDialogTrigger
           render={<Button variant="outline" className="w-fit" />}
@@ -42,9 +42,7 @@ export function ReiniciarDemo() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Reiniciar a demonstração?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {TEXTOS_SAUDE.reset}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{TEXTO_RESET_DEMO}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

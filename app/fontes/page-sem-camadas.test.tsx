@@ -9,6 +9,11 @@ jest.mock("@/lib/server/db/cliente", () => ({
 jest.mock("@/lib/server/datasets/dataset-repositorio", () => ({
   listarDatasetsPublicados: jest.fn().mockResolvedValue([]),
 }))
+jest.mock("@/lib/server/obras/obra-repositorio", () => ({
+  resumirObrasParaFontes: jest
+    .fn()
+    .mockResolvedValue({ quantidade: 0, ultimaAtualizacao: null }),
+}))
 
 describe("PaginaFontes sem camada carregada (PA-01.04)", () => {
   it("diz que nenhuma camada foi carregada e não lista cartão", async () => {

@@ -32,6 +32,7 @@ export function pontoInteriorDe(id: string): PontoGeografico {
 export type MapaNoRecipiente = {
   project(ponto: PontoGeografico): { x: number; y: number }
   hasImage(nome: string): boolean
+  getFilter(camada: string): unknown
   getLayoutProperty(camada: string, propriedade: string): unknown
   getSource(fonte: string): { getData(): Promise<{ features: unknown[] }> }
   getFeatureState(alvo: { source: string; id: string }): {
@@ -57,6 +58,34 @@ export async function clicarNoPonto(mapa: Locator, ponto: PontoGeografico) {
     return mapa.project([lng, lat])
   }, ponto)
   await mapa.click({ position: pixel })
+}
+
+/** Features da fonte de obras do mapa: um marcador por obra com ponto (E2E de Obras). */
+export function obrasNoMapa(mapa: Locator) {
+  return mapa.evaluate(async (recipiente) => {
+    const { mapa: instancia } = recipiente as unknown as {
+      mapa: MapaNoRecipiente
+    }
+    const dados = await instancia.getSource("obras").getData()
+    return (
+      dados.features as { properties: { id: string; titulo: string } }[]
+    ).map(({ properties }) => properties)
+  })
+}
+
+/** Id da obra que a camada de destaque está filtrando; `""` quando nenhuma obra está destacada no mapa. */
+export function obraDestacadaNoMapa(mapa: Locator) {
+  return mapa.evaluate((recipiente) => {
+    const { mapa: instancia } = recipiente as unknown as {
+      mapa: MapaNoRecipiente
+    }
+    const filtro = instancia.getFilter("obras-selecionada") as [
+      string,
+      unknown,
+      string,
+    ]
+    return filtro[2]
+  })
 }
 
 export function bairroEstaSelecionadoNoMapa(mapa: Locator, id: string) {
