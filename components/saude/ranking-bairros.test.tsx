@@ -34,14 +34,10 @@ function renderizar(
 }
 
 describe("RankingBairros (TU-26, CA-02.22)", () => {
-  it("mostra a regra de ordenação escrita e os bairros do maior ao menor, com empate em ordem alfabética", () => {
+  it("mostra os bairros do maior ao menor, com empate em ordem alfabética, sem repetir a regra (ela mora na metodologia)", () => {
     renderizar()
 
-    expect(
-      screen.getByText(
-        "Ordem: mais casos primeiro; empate em ordem alfabética do nome do bairro."
-      )
-    ).toBeVisible()
+    expect(screen.queryByText(/Ordem:/)).toBeNull()
     const itens = within(screen.getByRole("list")).getAllByRole("listitem")
     expect(itens.map((item) => item.textContent)).toEqual([
       "Outra Banda12 casos",

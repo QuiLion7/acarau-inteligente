@@ -10,6 +10,10 @@ import type {
   EstadoEscola,
   LimiteMunicipal,
 } from "@/lib/territorio/artefato-schema"
+import {
+  bairrosParaGeoJson,
+  escolasParaGeoJson,
+} from "@/lib/territorio/geojson-mapa"
 
 export const FONTES_MAPA = {
   fundo: "mapa-base",
@@ -122,7 +126,7 @@ export const CAMADAS_CONTROLAVEIS: readonly CamadaControlavel[] = [
 ]
 
 export type EstadoComMarcador = Exclude<EstadoEscola, "sem-localizacao">
-type FormaDoIcone = "circulo" | "quadrado" | "triangulo"
+export type FormaDoIcone = "circulo" | "quadrado" | "triangulo"
 
 export type IconeEscola = {
   /** Nome da imagem registrada no mapa. */
@@ -160,124 +164,13 @@ export const ICONES_ESCOLA: Record<EstadoComMarcador, IconeEscola> = {
   },
 }
 
-const LADO_ICONE_PX = 24
-const MEIO_LADO_ICONE = 11
-const ESPESSURA_CONTORNO_ICONE = 3
-
-const DENTRO_DA_FORMA: Record<
-  FormaDoIcone,
-  (dx: number, dy: number, meioLado: number) => boolean
-> = {
-  circulo: (dx, dy, meioLado) => Math.hypot(dx, dy) <= meioLado,
-  quadrado: (dx, dy, meioLado) =>
-    Math.max(Math.abs(dx), Math.abs(dy)) <= meioLado,
-  // Ponta para cima: a meia-largura cresce de 0 no topo até `meioLado` na base.
-  triangulo: (dx, dy, meioLado) =>
-    dy >= -meioLado && dy <= meioLado && Math.abs(dx) <= (dy + meioLado) / 2,
-}
-
-function rgbDeHex(cor: string): [number, number, number] {
-  const valor = Number.parseInt(cor.slice(1), 16)
-  return [(valor >> 16) & 255, (valor >> 8) & 255, valor & 255]
-}
-
-export type ImagemRgba = { width: number; height: number; data: Uint8Array }
-
-/** Rasteriza o ícone (forma preenchida com contorno branco, fundo transparente), sem depender de canvas. */
-export function desenharIconeEscola(icone: IconeEscola): ImagemRgba {
-  const dentro = DENTRO_DA_FORMA[icone.forma]
-  const [vermelho, verde, azul] = rgbDeHex(icone.cor)
-  const centro = (LADO_ICONE_PX - 1) / 2
-  const data = new Uint8Array(LADO_ICONE_PX * LADO_ICONE_PX * 4)
-  for (let linha = 0; linha < LADO_ICONE_PX; linha++) {
-    for (let coluna = 0; coluna < LADO_ICONE_PX; coluna++) {
-      const [dx, dy] = [coluna - centro, linha - centro]
-      if (!dentro(dx, dy, MEIO_LADO_ICONE)) continue
-      const noMiolo = dentro(dx, dy, MEIO_LADO_ICONE - ESPESSURA_CONTORNO_ICONE)
-      const pixel = (linha * LADO_ICONE_PX + coluna) * 4
-      data.set(
-        noMiolo ? [vermelho, verde, azul, 255] : [255, 255, 255, 255],
-        pixel
-      )
-    }
-  }
-  return { width: LADO_ICONE_PX, height: LADO_ICONE_PX, data }
-}
-
-const LADO_HACHURA_PX = 8
-const ESPESSURA_HACHURA_PX = 2
-const COR_HACHURA = [107, 114, 128, 255] as const
-
-/** Hachura diagonal cinza sobre fundo transparente (sem dados): diferente de qualquer classe mesmo sem ver cor. */
-export function desenharHachuraSemDados(): ImagemRgba {
-  const data = new Uint8Array(LADO_HACHURA_PX * LADO_HACHURA_PX * 4)
-  for (let linha = 0; linha < LADO_HACHURA_PX; linha++) {
-    for (let coluna = 0; coluna < LADO_HACHURA_PX; coluna++) {
-      const naDiagonal =
-        (coluna + linha) % LADO_HACHURA_PX < ESPESSURA_HACHURA_PX
-      if (naDiagonal)
-        data.set(COR_HACHURA, (linha * LADO_HACHURA_PX + coluna) * 4)
-    }
-  }
-  return { width: LADO_HACHURA_PX, height: LADO_HACHURA_PX, data }
-}
-
-type DadosDoMapa = {
+export type DadosDoMapa = {
   bairros: readonly Bairro[]
   limite: LimiteMunicipal
   /** Sem escolas (mapa resumo do Início), o estilo não leva a camada nem a fonte delas. */
   escolas?: readonly Escola[]
   /** Sem isto o mapa tem exatamente as camadas do Território; com isto, as do coroplético da Saúde. */
   coropletico?: DadosCoropletico
-}
-
-export type Enquadramento = [
-  [oeste: number, sul: number],
-  [leste: number, norte: number],
-]
-
-/** Retângulo que envolve todos os bairros: é onde o mapa abre (a cobertura é a sede, não o município inteiro). */
-export function calcularEnquadramento(
-  bairros: readonly Bairro[]
-): Enquadramento {
-  const [primeiro, ...demais] = bairros
-  if (!primeiro) throw new Error("Sem bairros para enquadrar o mapa.")
-  const [oeste, sul, leste, norte] = demais.reduce(
-    (atual, { bbox }) => [
-      Math.min(atual[0], bbox[0]),
-      Math.min(atual[1], bbox[1]),
-      Math.max(atual[2], bbox[2]),
-      Math.max(atual[3], bbox[3]),
-    ],
-    primeiro.bbox
-  )
-  return [
-    [oeste, sul],
-    [leste, norte],
-  ]
-}
-
-/** Bairros como GeoJSON; no coroplético cada um leva `situacao` e `classe` do período (DEC-T-07). */
-export function bairrosParaGeoJson(
-  bairros: readonly Bairro[],
-  coropletico?: DadosCoropletico
-) {
-  return {
-    type: "FeatureCollection" as const,
-    features: bairros.map(({ id, nome, uv, geometria }) => ({
-      type: "Feature" as const,
-      properties: {
-        id,
-        nome,
-        uv,
-        ...(coropletico && {
-          situacao: coropletico[id]?.situacao ?? "sem-dados",
-          classe: coropletico[id]?.classe ?? null,
-        }),
-      },
-      geometry: geometria,
-    })),
-  }
 }
 
 function emFeatureState(estado: string, comEstado: number, semEstado: number) {
@@ -287,23 +180,6 @@ function emFeatureState(estado: string, comEstado: number, semEstado: number) {
     comEstado,
     semEstado,
   ]
-}
-
-function escolasParaGeoJson(escolas: readonly Escola[]) {
-  return {
-    type: "FeatureCollection" as const,
-    features: escolas.flatMap(({ codigoInep, nome, estado, posicao }) =>
-      posicao === null
-        ? []
-        : [
-            {
-              type: "Feature" as const,
-              properties: { codigoInep, nome, estado },
-              geometry: { type: "Point" as const, coordinates: posicao },
-            },
-          ]
-    ),
-  }
 }
 
 // `match` do estado da escola para o nome da imagem registrada no mapa.

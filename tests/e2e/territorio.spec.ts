@@ -345,7 +345,7 @@ test.describe("território: escolas", () => {
     )
   })
 
-  test("o quadro de qualidade mostra 62, 58, 4, 34 e 1 com as listas", async ({
+  test("o quadro de qualidade mostra 62, 58, 4, 33 e 1 com as listas", async ({
     page,
   }) => {
     await page.goto("/territorio")

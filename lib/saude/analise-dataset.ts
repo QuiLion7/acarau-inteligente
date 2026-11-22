@@ -18,7 +18,12 @@ export type OpcaoDeVersao = {
 export type AnaliseDatasetSaude = SerieSaude & {
   versao: Pick<
     VersaoResumo,
-    "id" | "numero" | "situacao" | "importadoEm" | "publicadoEm"
+    | "id"
+    | "numero"
+    | "situacao"
+    | "importadoEm"
+    | "publicadoEm"
+    | "granularidade"
   >
   dataset: Pick<
     DatasetResumo,

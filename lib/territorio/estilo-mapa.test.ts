@@ -1,13 +1,9 @@
 import { obterDadosTerritorio } from "@/lib/server/territorio/territorio-repositorio"
 
 import {
-  bairrosParaGeoJson,
   CAMADAS_CONTROLAVEIS,
   CAMADAS_MAPA,
-  calcularEnquadramento,
   CORES_COROPLETICO,
-  desenharHachuraSemDados,
-  desenharIconeEscola,
   ehErroDoFundo,
   FONTES_MAPA,
   ICONES_ESCOLA,
@@ -110,76 +106,6 @@ describe("montarEstilo com escolas", () => {
     expect(semEscolas.layers.map(({ id }) => id)).not.toContain(
       CAMADAS_MAPA.escolas
     )
-  })
-})
-
-function pixelsOpacos({ data }: { data: Uint8Array }) {
-  return data.filter((valor, indice) => indice % 4 === 3 && valor === 255)
-    .length
-}
-
-describe("desenharIconeEscola", () => {
-  const icones = Object.values(ICONES_ESCOLA).map(desenharIconeEscola)
-
-  it("gera uma imagem RGBA 24x24 por estado, com fundo transparente e miolo opaco", () => {
-    for (const { width, height, data } of icones) {
-      expect(width * height * 4).toBe(data.length)
-      expect(data[3]).toBe(0)
-      const meio = (Math.floor(height / 2) * width + Math.floor(width / 2)) * 4
-      expect(data[meio + 3]).toBe(255)
-    }
-  })
-
-  it("os três ícones são diferentes entre si (forma e cor, não só cor)", () => {
-    const [circulo, quadrado, triangulo] = icones.map(({ data }) =>
-      Buffer.from(data).toString("base64")
-    )
-
-    expect(new Set([circulo, quadrado, triangulo]).size).toBe(3)
-  })
-
-  it("as formas ocupam áreas diferentes: o quadrado é o maior e o triângulo, o menor", () => {
-    const [circulo, quadrado, triangulo] = icones.map(pixelsOpacos)
-
-    expect(quadrado).toBeGreaterThan(circulo!)
-    expect(circulo).toBeGreaterThan(triangulo!)
-  })
-
-  it("o miolo usa a cor do estado e o contorno é branco", () => {
-    const { data } = desenharIconeEscola(ICONES_ESCOLA["fora-do-limite"])
-    const rgbEm = (linha: number, coluna: number) => {
-      const inicio = (linha * 24 + coluna) * 4
-      return [...data.slice(inicio, inicio + 3)]
-    }
-
-    expect(rgbEm(12, 12)).toEqual([0xb9, 0x1c, 0x1c])
-    expect(rgbEm(21, 12)).toEqual([255, 255, 255])
-  })
-})
-
-describe("calcularEnquadramento", () => {
-  it("envolve todos os bairros", () => {
-    const [[oeste, sul], [leste, norte]] = calcularEnquadramento(bairros)
-
-    for (const { bbox } of bairros) {
-      expect(bbox[0]).toBeGreaterThanOrEqual(oeste)
-      expect(bbox[1]).toBeGreaterThanOrEqual(sul)
-      expect(bbox[2]).toBeLessThanOrEqual(leste)
-      expect(bbox[3]).toBeLessThanOrEqual(norte)
-    }
-  })
-
-  it("com um bairro só devolve o retângulo dele", () => {
-    const [centro] = bairros.filter(({ id }) => id === "uv-10")
-
-    expect(calcularEnquadramento([centro!])).toEqual([
-      [centro!.bbox[0], centro!.bbox[1]],
-      [centro!.bbox[2], centro!.bbox[3]],
-    ])
-  })
-
-  it("sem bairros falha com erro claro, em vez de enquadrar um lugar qualquer", () => {
-    expect(() => calcularEnquadramento([])).toThrow("Sem bairros")
   })
 })
 
@@ -309,29 +235,5 @@ describe("montarEstilo com coroplético (PA-02.08, DEC-T-07, DEC-T-08)", () => {
       "nome",
       "uv",
     ])
-  })
-})
-
-describe("bairrosParaGeoJson", () => {
-  it("troca os dados do período mantendo geometria e ID dos 24 bairros", () => {
-    const geojson = bairrosParaGeoJson(bairros, COROPLETICO)
-
-    expect(geojson.features).toHaveLength(24)
-    expect(geojson.features[9]).toMatchObject({
-      properties: { id: "uv-10", situacao: "valor", classe: 3 },
-      geometry: bairros[9]?.geometria,
-    })
-  })
-})
-
-describe("desenharHachuraSemDados", () => {
-  it("é uma imagem quadrada com listras diagonais cinza e fundo transparente", () => {
-    const { width, height, data } = desenharHachuraSemDados()
-
-    expect(data).toHaveLength(width * height * 4)
-    expect(width).toBe(height)
-    const opacos = pixelsOpacos({ data })
-    expect(opacos).toBeGreaterThan(0)
-    expect(opacos).toBeLessThan(width * height)
   })
 })

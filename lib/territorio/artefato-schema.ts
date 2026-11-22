@@ -122,6 +122,7 @@ export type GeometriaGeoJson = z.infer<typeof multiPoligonoSchema>
 export type BairroResumo = Pick<Bairro, "id" | "uv" | "nome" | "nomeLei">
 
 export type DadosTerritorio = {
+  regraFronteira: string
   bairros: Bairro[]
   limite: LimiteMunicipal
   escolas: Escola[]

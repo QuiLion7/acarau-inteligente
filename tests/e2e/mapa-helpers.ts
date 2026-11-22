@@ -39,8 +39,16 @@ export type MapaNoRecipiente = {
   }
 }
 
+// Os tiles do fundo já são interceptados (fixtures.ts), então o que demora é o WebGL por software do Chromium sem
+// GPU criar o mapa e carregar o estilo. Medido em `--repeat-each=8`: de 2,3 s a 4,3 s com a máquina livre. O padrão
+// de 5 s do Playwright não deixava folga para a suíte inteira em carga (CR-02); 15 s é cerca de 3,5 vezes o pior
+// caso medido. É orçamento de um passo que depende do hardware, não retry nem espera às cegas: se estourar, falha.
+const ORCAMENTO_MAPA_PRONTO_MS = 15_000
+
 export async function aguardarMapaPronto(mapa: Locator) {
-  await expect(mapa).toHaveAttribute("data-mapa-pronto", "true")
+  await expect(mapa).toHaveAttribute("data-mapa-pronto", "true", {
+    timeout: ORCAMENTO_MAPA_PRONTO_MS,
+  })
 }
 
 export async function clicarNoPonto(mapa: Locator, ponto: PontoGeografico) {

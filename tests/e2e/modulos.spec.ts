@@ -1,21 +1,20 @@
 import { expect, test } from "./fixtures"
 
-// PA-02.01: a Saúde deixou de ser "em breve" no EP-02; Educação, Obras e Relatórios continuam (PA-02.07).
+// PA-02.01 e PA-03.06: a Saúde (EP-02) e a Educação (EP-03) deixaram de ser "em breve"; Obras e Relatórios continuam (PA-03.09).
 test.describe("módulos ainda não entregues", () => {
-  test("Educação mostra disponível em breve, sem botão, gráfico nem número", async ({
+  test("a Educação não é mais disponível em breve (PA-03.06)", async ({
     page,
   }) => {
     await page.goto("/educacao")
 
-    const conteudo = page.locator("#conteudo")
     await expect(
-      conteudo.getByRole("heading", { name: "Disponível em breve" })
+      page.getByRole("heading", { level: 1, name: "Educação" })
     ).toBeVisible()
-    await expect(conteudo.getByRole("button")).toHaveCount(0)
     await expect(
-      conteudo.locator('canvas, svg:not([aria-hidden="true"]), [role="img"]')
+      page.locator("#conteudo").getByRole("heading", {
+        name: "Disponível em breve",
+      })
     ).toHaveCount(0)
-    await expect(conteudo).not.toContainText(/\d/)
   })
 
   test("a Saúde não é mais disponível em breve (PA-02.01)", async ({

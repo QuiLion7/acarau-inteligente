@@ -22,13 +22,13 @@ function indicador(rotulo: string) {
 }
 
 describe("QuadroQualidadeEscolas", () => {
-  it("mostra 62 / 58 / 4 / 34 / 1 lidos do artefato, com a frase de total e a fonte", () => {
+  it("mostra 62 / 58 / 4 / 33 / 1 lidos do artefato, com a frase de total e a fonte", () => {
     renderizar(qualidade)
 
     expect(indicador("Registros no catálogo")).toHaveTextContent("62")
     expect(indicador("Com localização")).toHaveTextContent("58")
     expect(indicador("Sem localização")).toHaveTextContent("4")
-    expect(indicador("Fora da cobertura dos bairros")).toHaveTextContent("34")
+    expect(indicador("Fora da cobertura dos bairros")).toHaveTextContent("33")
     expect(indicador("Fora do limite municipal")).toHaveTextContent("1")
     expect(
       screen.getByText(

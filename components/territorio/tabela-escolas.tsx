@@ -9,7 +9,10 @@ import {
 } from "@tanstack/react-table"
 import { useMemo, useState } from "react"
 
+import { EstadoInterface } from "@/components/estados/estado-interface"
 import { Button } from "@/components/ui/button"
+import { Field, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -39,6 +42,7 @@ import {
 } from "@/lib/territorio/estado-escola"
 import {
   filtrarEscolas,
+  haFiltroAtivo,
   SEM_FILTROS,
   TODAS,
 } from "@/lib/territorio/filtro-escolas"
@@ -95,10 +99,12 @@ type TabelaEscolasProps = {
   fonte: string
   dataReferencia: string
   onAbrirEscola: (codigoInep: string) => void
+  /** Liga a busca por nome ou código INEP e o "Limpar filtros" (RF-03.18); desligado, a tela é a do Território. */
+  comBusca?: boolean
 }
 
-// Tabela de escolas (RF-01.20): filtra pelo bairro da URL e por dependência, localização e cobertura; pagina de 10.
-// O total exibido é o tamanho da lista filtrada, sempre com fonte e data de referência.
+// Tabela de escolas (RF-01.20, RF-03.18): filtra pelo bairro da URL e por dependência, localização e cobertura, com
+// busca opcional; pagina de 10. O total exibido é o tamanho da lista filtrada, sempre com fonte e data de referência.
 export function TabelaEscolas({
   escolas,
   bairros,
@@ -106,6 +112,7 @@ export function TabelaEscolas({
   fonte,
   dataReferencia,
   onAbrirEscola,
+  comBusca = false,
 }: TabelaEscolasProps) {
   const [filtros, setFiltros] = useState(SEM_FILTROS)
   const bairroId = bairroSelecionado?.id ?? null
@@ -132,11 +139,17 @@ export function TabelaEscolas({
   const ultima = Math.min(primeira + ESCOLAS_POR_PAGINA - 1, linhas.length)
 
   function alterarFiltro(
-    campo: keyof typeof SEM_FILTROS,
+    campo: Exclude<keyof typeof SEM_FILTROS, "termo">,
     valor: string | null
   ) {
     setFiltros((atuais) => ({ ...atuais, [campo]: valor ?? TODAS }))
   }
+
+  function handleLimparFiltros() {
+    setFiltros(SEM_FILTROS)
+  }
+
+  const podeLimpar = comBusca && haFiltroAtivo(filtros)
 
   return (
     <div className="flex flex-col gap-3">
@@ -145,6 +158,26 @@ export function TabelaEscolas({
           ? `Escolas de ${bairroSelecionado.nome}`
           : "Todas as escolas da base"}
       </h3>
+      {comBusca ? (
+        <Field>
+          <FieldLabel htmlFor="busca-escola">
+            {TEXTOS_TERRITORIO.buscaEscolaRotulo}
+          </FieldLabel>
+          <Input
+            id="busca-escola"
+            type="search"
+            autoComplete="off"
+            placeholder={TEXTOS_TERRITORIO.buscaEscolaDica}
+            value={filtros.termo}
+            onChange={(evento) =>
+              setFiltros((atuais) => ({
+                ...atuais,
+                termo: evento.target.value,
+              }))
+            }
+          />
+        </Field>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         <FiltroSelect
           id="filtro-dependencia"
@@ -168,6 +201,16 @@ export function TabelaEscolas({
           onChange={(valor) => alterarFiltro("cobertura", valor)}
         />
       </div>
+      {podeLimpar && linhas.length > 0 ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={handleLimparFiltros}
+        >
+          {TEXTOS_TERRITORIO.limparFiltros}
+        </Button>
+      ) : null}
       <Table>
         <TableCaption className="sr-only">
           Escolas da base disponível, com dependência, localização e cobertura
@@ -212,11 +255,12 @@ export function TabelaEscolas({
         </TableBody>
       </Table>
       {linhas.length === 0 ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          {bairroSelecionado?.totalEscolas === 0
-            ? TEXTOS_TERRITORIO.bairroSemEscola
-            : "Nenhuma escola da base corresponde aos filtros escolhidos."}
-        </p>
+        <SemEscolas
+          comBusca={comBusca}
+          bairroSemEscola={bairroSelecionado?.totalEscolas === 0}
+          podeLimpar={podeLimpar}
+          onLimpar={handleLimparFiltros}
+        />
       ) : (
         <p role="status" className="text-sm">
           Mostrando {primeira} a {ultima} de{" "}
@@ -248,6 +292,47 @@ export function TabelaEscolas({
         </Button>
       </div>
     </div>
+  )
+}
+
+type SemEscolasProps = {
+  comBusca: boolean
+  /** O bairro escolhido não tem escola na base: zero real da carga, não filtro demais. */
+  bairroSemEscola: boolean
+  podeLimpar: boolean
+  onLimpar: () => void
+}
+
+function SemEscolas({
+  comBusca,
+  bairroSemEscola,
+  podeLimpar,
+  onLimpar,
+}: SemEscolasProps) {
+  if (!comBusca) {
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {bairroSemEscola
+          ? TEXTOS_TERRITORIO.bairroSemEscola
+          : "Nenhuma escola da base corresponde aos filtros escolhidos."}
+      </p>
+    )
+  }
+  return (
+    <EstadoInterface
+      tipo="vazio"
+      titulo={TEXTOS_TERRITORIO.escolasSemResultadoTitulo}
+      descricao={
+        bairroSemEscola && !podeLimpar
+          ? TEXTOS_TERRITORIO.bairroSemEscola
+          : TEXTOS_TERRITORIO.escolasSemResultado
+      }
+      acao={
+        podeLimpar ? (
+          <Button onClick={onLimpar}>{TEXTOS_TERRITORIO.limparFiltros}</Button>
+        ) : undefined
+      }
+    />
   )
 }
 

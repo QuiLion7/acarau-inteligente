@@ -10,7 +10,8 @@ const NAO_INFORMADA = "Não informada"
 
 function renderizar(
   bairroId: string | null = null,
-  onAbrirEscola: (codigo: string) => void = jest.fn()
+  onAbrirEscola: (codigo: string) => void = jest.fn(),
+  comBusca = false
 ) {
   const bairro = bairros.find(({ id }) => id === bairroId) ?? null
   return render(
@@ -21,6 +22,7 @@ function renderizar(
       fonte={FONTE}
       dataReferencia={NAO_INFORMADA}
       onAbrirEscola={onAbrirEscola}
+      comBusca={comBusca}
     />
   )
 }
@@ -155,5 +157,115 @@ describe("TabelaEscolas", () => {
     )
 
     expect(onAbrirEscola).toHaveBeenCalledWith("23000872")
+  })
+})
+
+describe("TabelaEscolas com busca (TU-24, CA-03.21, CA-03.22, PA-03.05)", () => {
+  const busca = () => screen.getByRole("searchbox", { name: "Buscar escola" })
+
+  it("sem a prop, a tela é a do Território: sem campo de busca nem 'Limpar filtros', mesmo com filtro ligado", async () => {
+    renderizar()
+
+    await filtrar("Localização", "Rural")
+
+    expect(screen.queryByRole("searchbox")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Limpar filtros" })).toBeNull()
+  })
+
+  it("buscar o código INEP 23000910 lista só a escola fora do limite, com a contagem", async () => {
+    const usuario = userEvent.setup()
+    renderizar(null, jest.fn(), true)
+
+    await usuario.type(busca(), "23000910")
+
+    expect(linhasDeDados()).toHaveLength(1)
+    expect(
+      within(linhasDeDados()[0]!).getByText("Fora do limite municipal")
+    ).toBeVisible()
+    expect(screen.getByText("Mostrando 1 a 1 de 1 escola.")).toBeVisible()
+  })
+
+  it("a busca combina com os filtros e a contagem acompanha as linhas", async () => {
+    const usuario = userEvent.setup()
+    renderizar(null, jest.fn(), true)
+
+    await filtrar("Dependência", "Estadual")
+    await filtrar("Localização", "Rural")
+
+    const total = linhasDeDados().length
+    expect(total).toBeGreaterThan(0)
+    expect(
+      screen.getByText(
+        `Mostrando 1 a ${total} de ${total} ${total === 1 ? "escola" : "escolas"}.`
+      )
+    ).toBeVisible()
+    await usuario.type(busca(), "zzzz")
+    expect(linhasDeDados()).toHaveLength(0)
+  })
+
+  it("'Limpar filtros' só aparece com algo ligado e devolve as 62 escolas, esvaziando a busca e os filtros", async () => {
+    const usuario = userEvent.setup()
+    renderizar(null, jest.fn(), true)
+    expect(screen.queryByRole("button", { name: "Limpar filtros" })).toBeNull()
+
+    await usuario.type(busca(), "escola")
+    await filtrar("Localização", "Rural")
+    await usuario.click(screen.getByRole("button", { name: "Limpar filtros" }))
+
+    expect(busca()).toHaveValue("")
+    expect(
+      screen.getByRole("combobox", { name: "Localização" })
+    ).toHaveTextContent("Todas")
+    expect(screen.getByText("Mostrando 1 a 10 de 62 escolas.")).toBeVisible()
+    expect(screen.queryByRole("button", { name: "Limpar filtros" })).toBeNull()
+  })
+
+  it("sem resultado mostra o estado vazio com a ação 'Limpar filtros', que restaura a lista", async () => {
+    const usuario = userEvent.setup()
+    renderizar(null, jest.fn(), true)
+
+    await usuario.type(busca(), "zzzzzz")
+
+    expect(
+      screen.getByRole("heading", { name: "Nenhuma escola encontrada" })
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        "Nenhuma escola da base corresponde à busca e aos filtros escolhidos."
+      )
+    ).toBeVisible()
+    expect(
+      screen.getAllByRole("button", { name: "Limpar filtros" })
+    ).toHaveLength(1)
+
+    await usuario.click(screen.getByRole("button", { name: "Limpar filtros" }))
+
+    expect(screen.getByText("Mostrando 1 a 10 de 62 escolas.")).toBeVisible()
+    expect(
+      screen.queryByRole("heading", { name: "Nenhuma escola encontrada" })
+    ).toBeNull()
+  })
+
+  it("bairro sem escola, sem filtro ligado, mostra a ressalva da base e nenhuma ação de limpar", () => {
+    renderizar("uv-01", jest.fn(), true)
+
+    expect(
+      screen.getByText(
+        "Nenhuma escola da base disponível dentro deste bairro. A base não é um censo completo."
+      )
+    ).toBeVisible()
+    expect(screen.queryByRole("button", { name: "Limpar filtros" })).toBeNull()
+  })
+
+  it("a busca respeita o bairro selecionado: o código de uma escola de outro bairro não aparece", async () => {
+    const usuario = userEvent.setup()
+    renderizar("uv-10", jest.fn(), true)
+
+    await usuario.type(busca(), "23000910")
+
+    expect(linhasDeDados()).toHaveLength(0)
+    expect(
+      screen.getByRole("heading", { name: "Nenhuma escola encontrada" })
+    ).toBeVisible()
   })
 })

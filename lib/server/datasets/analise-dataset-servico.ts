@@ -30,13 +30,21 @@ export async function montarAnaliseDataset(
     lerSerieDaVersao(banco, versao.id),
     listarOpcoesDeVersao(banco, papel),
   ])
-  const { id, numero, situacao, importadoEm, publicadoEm } = versao
+  const { id, numero, situacao, importadoEm, publicadoEm, granularidade } =
+    versao
   const { nome, indicador, fonte, unidade, proveniencia } = dataset
   return {
     status: "ok",
     analise: {
       ...serie,
-      versao: { id, numero, situacao, importadoEm, publicadoEm },
+      versao: {
+        id,
+        numero,
+        situacao,
+        importadoEm,
+        publicadoEm,
+        granularidade,
+      },
       dataset: { nome, indicador, fonte, unidade, proveniencia },
       opcoes,
       podeGerenciar: temPapel(papel, "analista"),

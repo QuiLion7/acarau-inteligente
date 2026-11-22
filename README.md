@@ -17,7 +17,8 @@ Aplicação web de demonstração que transforma dados territoriais e setoriais 
 | EP-00 Fundação | Implementado (`sdd/ep-00-fundacao/tasks.md`): infraestrutura, banco, contrato de API, testes, casca, páginas públicas e acesso por papel; falta a revisão e o roteiro manual de `sdd/ep-00-fundacao/qa-report.md` |
 | EP-01 Território e escolas | Implementado (`sdd/ep-01-territorio-escolas/tasks.md`): carga e conferência do território, mapa com bairros, limite e escolas, lista, ficha, tabelas, quadro de qualidade, mapa resumido no Início e "Fontes e limitações" com as camadas; falta a revisão e o roteiro manual de `sdd/ep-01-territorio-escolas/qa-report.md` |
 | EP-02 Importação CSV e motor analítico | Implementado (`sdd/ep-02-importacao-analises/tasks.md`): importação de CSV por assistente, datasets versionados e publicáveis, Saúde com coroplético, ranking, tabela e gráfico por período, dataset pré-carregado, reset e datasets em "Fontes e limitações"; falta a revisão e o roteiro manual de `sdd/ep-02-importacao-analises/qa-report.md` |
-| EP-03 a EP-05 | Não iniciados |
+| EP-03 Saúde e Educação | Implementado (`sdd/ep-03-saude-educacao/tasks.md`): Saúde com cards e variação, seletor de bairro, abas Mapa e Tabela e metodologia; página Educação com cards, mapa, tabela por bairro, lista com busca, ficha e pendências; mapa dividido em módulos por conceito; falta a revisão e o roteiro manual de `sdd/ep-03-saude-educacao/qa-report.md` |
+| EP-04 e EP-05 | Não iniciados |
 
 ## Pré-requisitos
 
@@ -96,10 +97,18 @@ O analista (ou o administrador) importa contagens de saúde por bairro e períod
 
 - **Regras do arquivo:** `.csv` em UTF-8, até 5 MB e 10.000 linhas, com vírgula ou ponto e vírgula; só contagens agregadas (cabeçalho ou célula com cara de dado pessoal, como `nome_paciente` ou um CPF, recusam o arquivo). O mesmo conteúdo nunca é importado duas vezes (SHA-256 dos bytes).
 - **Versões:** um dataset novo ou uma nova versão de um existente nasce **privada**; **Publicar** é ação explícita (`/saude/datasets`), e publicar uma versão despublica a outra do mesmo dataset. O visitante só vê o publicado.
-- **Saúde:** mapa coroplético por quantis (até 5 classes), legenda, total ("soma dos bairros com dados"), ranking, tabela dos 24 bairros e gráfico por período. Taxa não é calculada (a demonstração não tem população por bairro).
+- **Saúde:** quatro cards no topo (total com variação contra o período anterior, bairros com dados, sem dados e fora da cobertura), seletor de bairro com busca, abas Mapa (coroplético por quantis, até 5 classes, e legenda) e Tabela (os 24 bairros), ranking, gráfico por período e a seção recolhível "Como os números são calculados". Taxa não é calculada (a demonstração não tem população por bairro); a explicação fica na metodologia.
 - **Dados de exemplo (`dados/sinteticos/`):** `saude-roteiro_DEMO.csv` (roteiro de importação, com um bairro ambíguo e outro não reconhecido), `adversos/` (um arquivo ruim por motivo de recusa) e `saude-pre-carregado_DEMO.csv`. O `LEIA-ME.txt` da pasta explica cada um.
 - **Pré-carregado e reset:** na subida o servidor grava e publica `saude-pre-carregado_DEMO.csv` se ele ainda não existe (pelo mesmo motor da importação; uma falha vai para o log e não derruba a subida). Em **Administração > Reiniciar a demonstração** o administrador apaga todos os datasets importados e restaura esse. O território nunca é tocado. A imagem do Docker copia só esse CSV (o `.dockerignore` exclui o resto de `dados/`) e o servidor o lê a partir do diretório de execução (`/app`).
 - **Testes que gravam dados:** o banco do E2E acumula entre execuções e o hash é único, então todo spec da Saúde começa com `reiniciarDemo()` (`tests/e2e/acesso-helpers.ts`).
+
+## Educação (EP-03)
+
+`/educacao` é pública (sem sessão e sem nenhuma ação de escrita) e lê o mesmo `territorio.json` do EP-01: os números vêm de `qualidade` e de `totalEscolas`, sem recontar. A tela mostra os cinco cards (62 registros, 58 georreferenciadas, 4 sem localização, 24 dentro dos bairros e 33 fora da cobertura, com a escola fora do limite citada à parte), o mapa com as escolas, a tabela de escolas por bairro com as linhas fora da soma, a lista com busca por nome ou código INEP e filtros, a ficha da escola num painel lateral, as pendências de qualidade e a metodologia.
+
+- **Bairro entre módulos:** o seletor de bairro escreve o mesmo filtro `bairro` da URL que a Saúde e o Território; o `periodo` não se aplica à Educação e é preservado ao navegar.
+- **Contagem:** no artefato, `qualidade.foraDaCobertura` (34) já inclui a escola fora do limite; a Educação a separa (33 + 1) para as quatro categorias somarem 62.
+- **Fonte e data:** vêm da camada `escolas` de "Fontes e limitações"; sem ela a página mostra "Fonte ausente" em vez de números.
 
 ## Dados
 

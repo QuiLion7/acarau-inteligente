@@ -32,3 +32,12 @@ export function ordenarRanking(itens: readonly ItemBairroPeriodo[]): {
     .toSorted(pelaOrdemDoNome)
   return { ranking, semDados }
 }
+
+/** Posição (a partir de 1) do bairro no ranking; `null` quando ele está fora, ou seja, sem dados (RF-03.04). */
+export function posicaoNoRanking(
+  ranking: readonly ItemDoRanking[],
+  idBairro: string
+): number | null {
+  const indice = ranking.findIndex(({ bairro }) => bairro.id === idBairro)
+  return indice === -1 ? null : indice + 1
+}

@@ -12,7 +12,9 @@ import { expect, test } from "./fixtures"
 import {
   aguardarMapaPronto,
   bairroEstaSelecionadoNoMapa,
+  clicarNoPonto,
   type MapaNoRecipiente,
+  pontoInteriorDe,
 } from "./mapa-helpers"
 import {
   importarEPublicarRoteiroPelaApi,
@@ -30,6 +32,12 @@ const tabelaDe = (page: Page) =>
   page.getByRole("region", { name: "Casos por bairro" })
 const linhaDoBairro = (page: Page, nome: string) =>
   tabelaDe(page).getByRole("row", { name: new RegExp(nome) })
+
+// A tabela mora na aba Tabela (RF-03.08); o painel do mapa só existe enquanto a aba Mapa está ativa.
+async function abrirAba(page: Page, nome: "Mapa" | "Tabela") {
+  await page.getByRole("tab", { name: nome }).click()
+  await expect(page.getByRole("tabpanel", { name: nome })).toBeVisible()
+}
 
 // O visitante é a ausência de sessão: o cookie sai do mesmo contexto, que mantém a interceptação dos tiles.
 async function virarVisitante(page: Page) {
@@ -72,6 +80,7 @@ test.describe("Saúde: dataset pré-carregado", () => {
       page.getByRole("heading", { level: 2, name: NOME_DO_PRE_CARREGADO })
     ).toBeVisible()
     await expect(page.locator("#conteudo").getByText("SINTETICO")).toBeVisible()
+    await abrirAba(page, "Tabela")
     await expect(
       linhaDoBairro(page, "Mucunã").getByText("sem dados")
     ).toBeVisible()
@@ -101,23 +110,186 @@ test.describe("Saúde: dataset pré-carregado", () => {
     await rankingDe(page).getByRole("button", { name: "Centro" }).click()
 
     await expect(page).toHaveURL(/\/saude\?bairro=uv-10$/)
+    expect(await bairroEstaSelecionadoNoMapa(mapa, "uv-10")).toBe(true)
+    await abrirAba(page, "Tabela")
     await expect(linhaDoBairro(page, "Centro")).toHaveAttribute(
       "data-state",
       "selected"
     )
-    expect(await bairroEstaSelecionadoNoMapa(mapa, "uv-10")).toBe(true)
 
     const menu = page.getByRole("navigation", { name: "Módulos" })
     await menu.getByRole("link", { name: "Território" }).click()
     await expect(page).toHaveURL(/\/territorio\?bairro=uv-10$/)
     await menu.getByRole("link", { name: "Saúde" }).click()
     await expect(page).toHaveURL(/\/saude\?bairro=uv-10$/)
+    await aguardarMapaPronto(mapa)
+    expect(await bairroEstaSelecionadoNoMapa(mapa, "uv-10")).toBe(true)
+    await abrirAba(page, "Tabela")
     await expect(linhaDoBairro(page, "Centro")).toHaveAttribute(
       "data-state",
       "selected"
     )
+  })
+
+  test("EP-03 E2E-01: os cards do pré-carregado de 2026 batem com o ranking e com a tabela", async ({
+    page,
+  }) => {
+    await page.goto("/saude")
+    await abrirAba(page, "Tabela")
+    await expect(tabelaDe(page)).toBeVisible()
+
+    const itensDoRanking = await rankingDe(page)
+      .getByRole("listitem")
+      .allInnerTexts()
+    const casosDoRanking = itensDoRanking.map((texto) =>
+      Number(texto.match(/([\d.]+) casos?$/)?.[1]?.replaceAll(".", ""))
+    )
+    const comDados = casosDoRanking.length
+    const total = casosDoRanking.reduce((soma, casos) => soma + casos, 0)
+    const linhasSemDados = await tabelaDe(page)
+      .getByRole("row")
+      .filter({ hasText: "sem dados" })
+      .count()
+
+    const cardTotal = page.getByRole("group", { name: "Total do período" })
+    await expect(cardTotal).toContainText(
+      `${new Intl.NumberFormat("pt-BR").format(total)} casos`
+    )
+    await expect(cardTotal).toContainText(
+      `Soma dos ${comDados} bairros com dados no período.`
+    )
+    const cardComDados = page.getByRole("group", { name: "Bairros com dados" })
+    await expect(
+      cardComDados.getByText(String(comDados), { exact: true })
+    ).toBeVisible()
+    await expect(cardComDados).toContainText("de 24 bairros")
+    await expect(
+      page
+        .getByRole("group", { name: "Bairros sem dados" })
+        .getByText(String(linhasSemDados), { exact: true })
+    ).toBeVisible()
+    expect(comDados + linhasSemDados).toBe(24)
+    // O total do conjunto é o mesmo que o card compara com 2025: a variação nomeia o período anterior.
+    await expect(cardTotal).toContainText("em relação a 2025")
+  })
+
+  test("EP-03 E2E-02: no primeiro período o card Total diz que não há período anterior e nunca mostra 0%", async ({
+    page,
+  }) => {
+    await page.goto("/saude?periodo=2024")
+
+    const cardTotal = page.getByRole("group", { name: "Total do período" })
+    await expect(cardTotal).toContainText("Sem período anterior para comparar.")
+    await expect(cardTotal).not.toContainText("%")
+  })
+
+  test("EP-03 E2E-07: a metodologia abre recolhida e mostra os dados do dataset e as regras", async ({
+    page,
+  }) => {
+    await page.goto("/saude")
+    const gatilho = page.getByRole("button", {
+      name: "Como os números são calculados",
+    })
+    await expect(gatilho).toHaveAttribute("aria-expanded", "false")
+    await expect(page.locator("#conteudo")).not.toContainText(
+      "A taxa exige a população"
+    )
+
+    await gatilho.click()
+
+    await expect(gatilho).toHaveAttribute("aria-expanded", "true")
+    const dados = page.locator("dl").filter({ hasText: "Granularidade" })
+    await expect(dados).toContainText(NOME_DO_PRE_CARREGADO)
+    await expect(dados).toContainText("anual")
+    await expect(dados).toContainText("2024, 2025, 2026")
+    await expect(page.locator("#conteudo")).toContainText(
+      "A taxa exige a população"
+    )
+    await expect(page.locator("#conteudo")).toContainText(
+      "Ordem: mais casos primeiro"
+    )
+    await expect(page.getByText("A taxa exige a população")).toHaveCount(1)
+  })
+
+  test("EP-03 E2E-03: o seletor acha 'centro', escolhe, a URL e a análise acompanham, e 'Todos os bairros' limpa", async ({
+    page,
+  }) => {
+    await page.goto("/saude")
+    const mapa = mapaDaSaude(page)
     await aguardarMapaPronto(mapa)
+    const seletor = page.getByRole("combobox", { name: "Bairro" })
+    await expect(seletor).toHaveValue("Todos os bairros")
+
+    await seletor.fill("centro")
+    await page.getByRole("option", { name: "Centro (UV 10)" }).click()
+
+    await expect(page).toHaveURL(/\/saude\?bairro=uv-10$/)
+    await expect(seletor).toHaveValue("Centro (UV 10)")
+    await expect(
+      rankingDe(page).getByRole("button", { name: "Centro" })
+    ).toHaveAttribute("aria-current", "true")
+    await expect(
+      page.getByRole("group", { name: "Bairro selecionado" })
+    ).toContainText("Centro")
     expect(await bairroEstaSelecionadoNoMapa(mapa, "uv-10")).toBe(true)
+    await abrirAba(page, "Tabela")
+    await expect(linhaDoBairro(page, "Centro")).toHaveAttribute(
+      "data-state",
+      "selected"
+    )
+
+    await seletor.click()
+    await page.getByRole("option", { name: "Todos os bairros" }).click()
+
+    await expect(page).toHaveURL(/\/saude$/)
+    await expect(seletor).toHaveValue("Todos os bairros")
+    await expect(
+      page.getByRole("group", { name: "Bairro selecionado" })
+    ).toHaveCount(0)
+    await expect(linhaDoBairro(page, "Centro")).not.toHaveAttribute(
+      "data-state",
+      "selected"
+    )
+    await abrirAba(page, "Mapa")
+    await aguardarMapaPronto(mapa)
+    expect(await bairroEstaSelecionadoNoMapa(mapa, "uv-10")).toBe(false)
+  })
+
+  test("EP-03 E2E-04: clicar no bairro do mapa atualiza o seletor", async ({
+    page,
+  }) => {
+    await page.goto("/saude")
+    const mapa = mapaDaSaude(page)
+    await aguardarMapaPronto(mapa)
+
+    await clicarNoPonto(mapa, pontoInteriorDe("uv-10"))
+
+    await expect(page).toHaveURL(/\/saude\?bairro=uv-10$/)
+    await expect(page.getByRole("combobox", { name: "Bairro" })).toHaveValue(
+      "Centro (UV 10)"
+    )
+  })
+
+  test("EP-03 E2E-05 (Saúde): bairro inválido mostra o estado, não exibe o valor e a análise segue; limpar funciona", async ({
+    page,
+  }) => {
+    await page.goto("/saude?bairro=uv-99")
+
+    await expect(
+      page.getByRole("heading", { name: "Bairro não reconhecido" })
+    ).toBeVisible()
+    await expect(page.locator("#conteudo")).not.toContainText("uv-99")
+    await expect(tabelaDe(page)).toBeVisible()
+    await expect(
+      page.getByRole("group", { name: "Total do período" })
+    ).toBeVisible()
+
+    await page.getByRole("button", { name: "Limpar bairro" }).click()
+
+    await expect(page).toHaveURL(/\/saude$/)
+    await expect(
+      page.getByRole("heading", { name: "Bairro não reconhecido" })
+    ).toHaveCount(0)
   })
 
   test("E2E-04: período que o dataset não tem mostra período sem dados, com a opção de limpar", async ({
@@ -143,7 +315,7 @@ test.describe("Saúde: dataset pré-carregado", () => {
     await page.goto("/saude")
     const mapa = mapaDaSaude(page)
     await aguardarMapaPronto(mapa)
-    const total = page.getByRole("region", { name: "Total do período" })
+    const total = page.getByRole("group", { name: "Total do período" })
     const totalDe2026 = await total.innerText()
 
     await page.getByRole("combobox", { name: "Período" }).click()
@@ -209,6 +381,17 @@ test.describe("Saúde: importar, publicar e conferir", () => {
     const mapa = mapaDaSaude(page)
     await aguardarMapaPronto(mapa)
 
+    const propriedades = await propriedadesNoMapa(mapa)
+    const situacaoNoMapa = (id: string) =>
+      propriedades.find((item) => item.id === id)?.situacao
+    expect(situacaoNoMapa("uv-10")).toBe("valor")
+    expect(situacaoNoMapa("uv-13")).toBe("zero")
+    expect(situacaoNoMapa("uv-04")).toBe("sem-dados")
+    expect(
+      propriedades.filter(({ situacao }) => situacao === "valor")
+    ).toHaveLength(4)
+    await abrirAba(page, "Tabela")
+
     // Mesmo período (2026) nas três apresentações: o valor de cada bairro é o mesmo e igual ao CSV (CA-02.19).
     const valoresDoCsv: [string, string][] = [
       ["Centro", "51"],
@@ -236,21 +419,13 @@ test.describe("Saúde: importar, publicar e conferir", () => {
     await expect(
       page.getByText("Soma dos 5 bairros com dados no período.")
     ).toBeVisible()
-    await expect(
-      page.getByText(
-        "Fora da cobertura: 8 casos em 1 localidade, fora do total e fora do mapa."
-      )
-    ).toBeVisible()
-    const propriedades = await propriedadesNoMapa(mapa)
-    const situacaoNoMapa = (id: string) =>
-      propriedades.find((item) => item.id === id)?.situacao
-    expect(situacaoNoMapa("uv-10")).toBe("valor")
-    expect(situacaoNoMapa("uv-13")).toBe("zero")
-    expect(situacaoNoMapa("uv-04")).toBe("sem-dados")
-    expect(
-      propriedades.filter(({ situacao }) => situacao === "valor")
-    ).toHaveLength(4)
-
+    const foraDaCobertura = page.getByRole("group", {
+      name: "Fora da cobertura",
+    })
+    await expect(foraDaCobertura).toContainText("8 casos")
+    await expect(foraDaCobertura).toContainText(
+      "em 1 localidade, fora do total e fora do mapa"
+    )
     await entrarPelaApi(page, ANALISTA)
     await page.goto("/saude/datasets")
     await expect(

@@ -23,6 +23,7 @@ export const ANALISE_SAUDE: AnaliseDatasetSaude = {
     situacao: "publicado",
     importadoEm: "2026-11-20T14:02:11.000Z",
     publicadoEm: "2026-11-20T15:00:00.000Z",
+    granularidade: "ano",
   },
   dataset: {
     nome: "Roteiro 2025-2026",

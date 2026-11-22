@@ -4,22 +4,26 @@ import { useMemo } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
 import { AcoesAnalista } from "@/components/saude/acoes-analista"
+import { AbasAnalise } from "@/components/saude/abas-analise"
 import { CabecalhoDataset } from "@/components/saude/cabecalho-dataset"
+import { CardBairroSelecionado } from "@/components/saude/card-bairro-selecionado"
+import { CardsSaude } from "@/components/saude/cards-saude"
 import { GraficoPeriodosDinamico } from "@/components/saude/grafico-periodos-dinamico"
 import { LegendaCoropletico } from "@/components/saude/legenda-coropletico"
 import { MapaCoropletico } from "@/components/saude/mapa-coropletico"
-import { NotaTaxa } from "@/components/saude/nota-taxa"
+import { MetodologiaSaude } from "@/components/saude/metodologia-saude"
 import { RankingBairros } from "@/components/saude/ranking-bairros"
 import { SeletorPeriodo } from "@/components/saude/seletor-periodo"
 import { SeletorVersao } from "@/components/saude/seletor-versao"
 import { TabelaCasosBairros } from "@/components/saude/tabela-casos-bairros"
-import { TotalPeriodo } from "@/components/saude/total-periodo"
+import { SeletorBairro } from "@/components/territorio/seletor-bairro"
 import { Button } from "@/components/ui/button"
 import { useFiltroBairro } from "@/hooks/use-filtro-bairro"
 import { useFiltroPeriodo } from "@/hooks/use-filtro-periodo"
 import type { AnaliseDatasetSaude } from "@/lib/saude/analise-dataset"
 import { montarAnalisePeriodo } from "@/lib/saude/analise-periodo"
-import { ordenarRanking } from "@/lib/saude/ranking"
+import { ordenarRanking, posicaoNoRanking } from "@/lib/saude/ranking"
+import { calcularVariacao } from "@/lib/saude/variacao-periodo"
 import type { DadosMapaResumo } from "@/lib/territorio/artefato-schema"
 
 type AnaliseSaudeProps = {
@@ -38,7 +42,11 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
     selecionar: selecionarPeriodo,
     limpar: limparPeriodo,
   } = useFiltroPeriodo(analise.periodos)
-  const { selecao, selecionar: selecionarBairro } = useFiltroBairro(bairros)
+  const {
+    selecao,
+    selecionar: selecionarBairro,
+    limpar: limparBairro,
+  } = useFiltroBairro(bairros)
   const periodo = resolucao.tipo === "sem-dados" ? null : resolucao.periodo
   const bairroSelecionado = selecao.tipo === "bairro" ? selecao.bairro : null
   const selecionadoId = bairroSelecionado?.id ?? null
@@ -47,6 +55,20 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
     () => (periodo ? montarAnalisePeriodo(analise, periodo, bairros) : null),
     [analise, periodo, bairros]
   )
+  const variacao = useMemo(
+    () => (periodo ? calcularVariacao(analise, periodo, bairros) : null),
+    [analise, periodo, bairros]
+  )
+  const variacaoDoBairro = useMemo(
+    () =>
+      periodo && bairroSelecionado
+        ? calcularVariacao(analise, periodo, [bairroSelecionado])
+        : null,
+    [analise, periodo, bairroSelecionado]
+  )
+  const itemDoBairro =
+    analisePeriodo?.bairros.find(({ bairro }) => bairro.id === selecionadoId) ??
+    null
   const ordenado = useMemo(
     () => (analisePeriodo ? ordenarRanking(analisePeriodo.bairros) : null),
     [analisePeriodo]
@@ -66,49 +88,81 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
           periodo={periodo}
           onChange={selecionarPeriodo}
         />
+        <SeletorBairro
+          id="seletor-bairro"
+          bairros={bairros}
+          selecao={selecao}
+          onSelecionar={selecionarBairro}
+          onLimpar={limparBairro}
+        />
       </div>
+      {selecao.tipo === "nao-reconhecido" ? (
+        <EstadoInterface
+          tipo="bairro-nao-reconhecido"
+          acao={
+            <Button type="button" onClick={limparBairro}>
+              Limpar bairro
+            </Button>
+          }
+        />
+      ) : null}
 
-      {analisePeriodo && ordenado && periodo ? (
+      {analisePeriodo && ordenado && variacao && periodo ? (
         <>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <MapaCoropletico
-              mapa={mapa}
-              analise={analisePeriodo}
-              selecionadoId={selecionadoId}
-              onSelecionar={selecionarBairro}
+          <CardsSaude
+            analise={analisePeriodo}
+            variacao={variacao}
+            periodo={periodo}
+          />
+          {itemDoBairro && variacaoDoBairro ? (
+            <CardBairroSelecionado
+              item={itemDoBairro}
+              posicao={posicaoNoRanking(
+                ordenado.ranking,
+                itemDoBairro.bairro.id
+              )}
+              totalNoRanking={ordenado.ranking.length}
+              variacao={variacaoDoBairro}
+              periodo={periodo}
             />
-            <div className="flex flex-col gap-8">
-              <TotalPeriodo
-                total={analisePeriodo.total}
-                foraDaCobertura={analisePeriodo.foraDaCobertura}
+          ) : null}
+          <AbasAnalise
+            mapa={
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <MapaCoropletico
+                  mapa={mapa}
+                  analise={analisePeriodo}
+                  selecionadoId={selecionadoId}
+                  onSelecionar={selecionarBairro}
+                />
+                <LegendaCoropletico
+                  indicador={dataset.indicador}
+                  unidade={dataset.unidade}
+                  periodo={periodo}
+                  classes={analisePeriodo.classes}
+                  foraDaCobertura={analisePeriodo.foraDaCobertura}
+                />
+              </div>
+            }
+            tabela={
+              <TabelaCasosBairros
+                itens={analisePeriodo.bairros}
+                selecionadoId={selecionadoId}
+                onSelecionar={selecionarBairro}
               />
-              <LegendaCoropletico
-                indicador={dataset.indicador}
-                unidade={dataset.unidade}
-                periodo={periodo}
-                classes={analisePeriodo.classes}
-                foraDaCobertura={analisePeriodo.foraDaCobertura}
-              />
-            </div>
-          </div>
+            }
+          />
           <GraficoPeriodosDinamico
             serie={analise}
             bairro={bairroSelecionado}
             unidade={dataset.unidade}
           />
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[repeat(2,minmax(0,1fr))]">
-            <RankingBairros
-              ranking={ordenado.ranking}
-              semDados={ordenado.semDados}
-              selecionadoId={selecionadoId}
-              onSelecionar={selecionarBairro}
-            />
-            <TabelaCasosBairros
-              itens={analisePeriodo.bairros}
-              selecionadoId={selecionadoId}
-              onSelecionar={selecionarBairro}
-            />
-          </div>
+          <RankingBairros
+            ranking={ordenado.ranking}
+            semDados={ordenado.semDados}
+            selecionadoId={selecionadoId}
+            onSelecionar={selecionarBairro}
+          />
         </>
       ) : (
         <EstadoInterface
@@ -120,7 +174,7 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
           }
         />
       )}
-      <NotaTaxa />
+      <MetodologiaSaude analise={analise} />
     </div>
   )
 }
