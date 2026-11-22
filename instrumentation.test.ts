@@ -1,5 +1,6 @@
 import { onRequestError } from "@/instrumentation"
 import { garantirPreCarregadoRegistrando } from "@/lib/server/demo/dataset-pre-carregado"
+import { garantirObrasPreCarregadasRegistrando } from "@/lib/server/obras/obras-pre-carregadas"
 
 // O banco e a carga do dataset de exemplo têm testes próprios: aqui só importa quando a subida os aciona.
 jest.mock("@/lib/server/db/cliente", () => ({
@@ -7,6 +8,9 @@ jest.mock("@/lib/server/db/cliente", () => ({
 }))
 jest.mock("@/lib/server/demo/dataset-pre-carregado", () => ({
   garantirPreCarregadoRegistrando: jest.fn(),
+}))
+jest.mock("@/lib/server/obras/obras-pre-carregadas", () => ({
+  garantirObrasPreCarregadasRegistrando: jest.fn(),
 }))
 
 const contextoDeRender = {
@@ -49,6 +53,7 @@ describe("instrumentation", () => {
 
   beforeEach(() => {
     jest.mocked(garantirPreCarregadoRegistrando).mockClear()
+    jest.mocked(garantirObrasPreCarregadasRegistrando).mockClear()
     // Ambiente do zero: o .env do desenvolvedor (carregado pelo next/jest) não pode vazar para o teste.
     process.env = { ...ambienteBase, NEXT_RUNTIME: "nodejs" }
     escrita = jest.spyOn(process.stdout, "write").mockImplementation(() => true)
@@ -70,6 +75,7 @@ describe("instrumentation", () => {
 
       expect(sair).toHaveBeenCalledWith(1)
       expect(garantirPreCarregadoRegistrando).not.toHaveBeenCalled()
+      expect(garantirObrasPreCarregadasRegistrando).not.toHaveBeenCalled()
       const [linha] = linhasEscritas(escrita)
       expect(linha).toMatchObject({ nivel: "error", evento: "config.invalida" })
       expect(linha.variaveis).toEqual(
@@ -86,6 +92,7 @@ describe("instrumentation", () => {
       expect(sair).not.toHaveBeenCalled()
       expect(escrita).not.toHaveBeenCalled()
       expect(garantirPreCarregadoRegistrando).not.toHaveBeenCalled()
+      expect(garantirObrasPreCarregadasRegistrando).not.toHaveBeenCalled()
     })
 
     it("não valida fora do runtime nodejs", async () => {
@@ -97,7 +104,7 @@ describe("instrumentation", () => {
       expect(escrita).not.toHaveBeenCalled()
     })
 
-    it("sobe sem encerrar nem registrar nada quando o ambiente está válido, e garante o dataset de exemplo (RF-02.41)", async () => {
+    it("sobe sem encerrar nem registrar nada quando o ambiente está válido, e garante o dataset e as obras de exemplo (RF-02.41, RF-04.29)", async () => {
       Object.assign(process.env, ambienteValido)
 
       await registrarIsolado()
@@ -105,6 +112,7 @@ describe("instrumentation", () => {
       expect(sair).not.toHaveBeenCalled()
       expect(escrita).not.toHaveBeenCalled()
       expect(garantirPreCarregadoRegistrando).toHaveBeenCalledTimes(1)
+      expect(garantirObrasPreCarregadasRegistrando).toHaveBeenCalledTimes(1)
     })
   })
 

@@ -4,7 +4,7 @@ import { POST } from "@/app/api/demo/reset/route"
 import { lerAmbiente, type Ambiente } from "@/lib/config/ambiente"
 import { confirmarImportacao } from "@/lib/server/datasets/importacao-servico"
 import { obterBanco } from "@/lib/server/db/cliente"
-import { dataset } from "@/lib/server/db/schema"
+import { dataset, obra } from "@/lib/server/db/schema"
 import {
   criarAmbienteDeTeste,
   USUARIO_ADMIN,
@@ -42,6 +42,21 @@ async function totalDeDatasets(): Promise<number> {
   return linha?.total ?? 0
 }
 
+async function totalDeObras(): Promise<number> {
+  const [linha] = await banco.select({ total: count() }).from(obra)
+  return linha?.total ?? 0
+}
+
+async function criarObraDoAnalista() {
+  await banco.insert(obra).values({
+    titulo: "DEMO - Obra do analista",
+    situacao: "planejada",
+    estadoLocalizacao: "sem-localizacao",
+    criadoPor: "analista-teste",
+    atualizadoPor: "analista-teste",
+  })
+}
+
 async function importarRoteiro() {
   await confirmarImportacao(banco, {
     arquivo: {
@@ -77,6 +92,7 @@ describe("POST /api/demo/reset: recusas (TI-07, parte, CA-02.18)", () => {
     "%s responde 401 NAO_AUTENTICADO sem dado e não apaga nada",
     async (_, token) => {
       await importarRoteiro()
+      await criarObraDoAnalista()
 
       const resposta = await reiniciar({ token })
 
@@ -87,11 +103,13 @@ describe("POST /api/demo/reset: recusas (TI-07, parte, CA-02.18)", () => {
         requestId: resposta.headers.get("x-request-id"),
       })
       expect(await totalDeDatasets()).toBe(1)
+      expect(await totalDeObras()).toBe(1)
     }
   )
 
-  it("o analista recebe 403 SEM_PERMISSAO, sem dado, e nada é apagado", async () => {
+  it("o analista recebe 403 SEM_PERMISSAO, sem dado, e nenhum dataset nem obra é apagado (CA-04.19)", async () => {
     await importarRoteiro()
+    await criarObraDoAnalista()
     const token = await tokenDoUsuario(USUARIO_ANALISTA, ambiente)
 
     const resposta = await reiniciar({ token })
@@ -103,6 +121,7 @@ describe("POST /api/demo/reset: recusas (TI-07, parte, CA-02.18)", () => {
       requestId: resposta.headers.get("x-request-id"),
     })
     expect(await totalDeDatasets()).toBe(1)
+    expect(await totalDeObras()).toBe(1)
   })
 
   it.each([
@@ -124,8 +143,9 @@ describe("POST /api/demo/reset: recusas (TI-07, parte, CA-02.18)", () => {
 })
 
 describe("POST /api/demo/reset: administrador (CA-02.29)", () => {
-  it("responde 204 sem corpo, restaura o pré-carregado e registra demo.reset com o usuário", async () => {
+  it("responde 204 sem corpo, restaura o pré-carregado e as obras de exemplo e registra demo.reset com o usuário", async () => {
     await importarRoteiro()
+    await criarObraDoAnalista()
     const token = await tokenDoUsuario(USUARIO_ADMIN, ambiente)
 
     const resposta = await reiniciar({ token })
@@ -136,6 +156,7 @@ describe("POST /api/demo/reset: administrador (CA-02.29)", () => {
     const [conjunto] = await banco.select().from(dataset)
     expect(conjunto?.preCarregado).toBe(true)
     expect(await totalDeDatasets()).toBe(1)
+    expect(await totalDeObras()).toBe(8)
     const eventos = escrita.mock.calls.map(([linha]) =>
       JSON.parse(String(linha))
     )
@@ -143,6 +164,7 @@ describe("POST /api/demo/reset: administrador (CA-02.29)", () => {
       {
         usuario: USUARIO_ADMIN,
         datasetsRemovidos: 1,
+        obrasRemovidas: 1,
       }
     )
   })
@@ -155,5 +177,6 @@ describe("POST /api/demo/reset: administrador (CA-02.29)", () => {
 
     expect([primeira.status, segunda.status]).toEqual([204, 204])
     expect(await totalDeDatasets()).toBe(1)
+    expect(await totalDeObras()).toBe(8)
   })
 })

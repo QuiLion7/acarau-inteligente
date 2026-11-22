@@ -1,0 +1,243 @@
+[
+  {
+    "codigoExemplo": "DEMO-01",
+    "entrada": {
+      "titulo": "DEMO - Requalificação de praça",
+      "situacao": "planejada",
+      "descricao": "Requalificação fictícia de uma praça central, criada para o roteiro da demonstração.",
+      "categoria": "praca_lazer",
+      "secretaria": "Infraestrutura",
+      "dataInicio": "2026-12-01",
+      "dataPrevista": "2027-03-31",
+      "valorPrevistoCentavos": 25000000,
+      "localizacao": {
+        "longitude": -40.118958,
+        "latitude": -2.885116
+      }
+    },
+    "atualizadoEm": "2026-11-10T13:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-11-10T13:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-02",
+    "entrada": {
+      "titulo": "DEMO - Pavimentação de via",
+      "situacao": "em_andamento",
+      "descricao": "Pavimentação fictícia de uma via de bairro.",
+      "categoria": "pavimentacao",
+      "secretaria": "Infraestrutura",
+      "dataInicio": "2026-10-20",
+      "dataPrevista": "2027-02-28",
+      "valorPrevistoCentavos": 180000000,
+      "localizacao": {
+        "longitude": -40.11933,
+        "latitude": -2.878113
+      }
+    },
+    "atualizadoEm": "2026-10-20T15:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-09-14T12:00:00.000Z"
+      },
+      {
+        "situacaoAnterior": "planejada",
+        "situacaoNova": "em_andamento",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-10-20T15:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-03",
+    "entrada": {
+      "titulo": "DEMO - Drenagem de águas pluviais",
+      "situacao": "concluida",
+      "descricao": "Drenagem fictícia, já concluída.",
+      "categoria": "drenagem",
+      "secretaria": "Obras e Serviços Urbanos",
+      "dataInicio": "2026-06-01",
+      "dataPrevista": "2026-10-30",
+      "valorPrevistoCentavos": 96050000,
+      "localizacao": {
+        "longitude": -40.120712,
+        "latitude": -2.894401
+      }
+    },
+    "atualizadoEm": "2026-11-05T17:30:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-05-12T12:00:00.000Z"
+      },
+      {
+        "situacaoAnterior": "planejada",
+        "situacaoNova": "em_andamento",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-06-01T12:00:00.000Z"
+      },
+      {
+        "situacaoAnterior": "em_andamento",
+        "situacaoNova": "concluida",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-11-05T17:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-04",
+    "entrada": {
+      "titulo": "DEMO - Reforma de edificação pública",
+      "situacao": "suspensa",
+      "descricao": "Reforma fictícia suspensa por ajuste de projeto.",
+      "categoria": "edificacao_publica",
+      "secretaria": "Administração",
+      "dataInicio": "2026-08-03",
+      "dataPrevista": "2027-01-15",
+      "valorPrevistoCentavos": null,
+      "localizacao": {
+        "longitude": -40.101157,
+        "latitude": -2.882096
+      }
+    },
+    "atualizadoEm": "2026-11-02T14:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-07-10T12:00:00.000Z"
+      },
+      {
+        "situacaoAnterior": "planejada",
+        "situacaoNova": "em_andamento",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-08-03T12:00:00.000Z"
+      },
+      {
+        "situacaoAnterior": "em_andamento",
+        "situacaoNova": "suspensa",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-11-02T14:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-05",
+    "entrada": {
+      "titulo": "DEMO - Iluminação pública",
+      "situacao": "em_andamento",
+      "descricao": "Troca fictícia de luminárias.",
+      "categoria": "iluminacao",
+      "secretaria": "Obras e Serviços Urbanos",
+      "dataInicio": "2026-10-05",
+      "dataPrevista": "2026-12-20",
+      "valorPrevistoCentavos": 32000000,
+      "localizacao": {
+        "longitude": -40.114699,
+        "latitude": -2.90028
+      }
+    },
+    "atualizadoEm": "2026-10-05T12:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-09-25T12:00:00.000Z"
+      },
+      {
+        "situacaoAnterior": "planejada",
+        "situacaoNova": "em_andamento",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-10-05T12:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-06",
+    "entrada": {
+      "titulo": "DEMO - Ampliação de rede de saneamento",
+      "situacao": "planejada",
+      "descricao": "Ampliação fictícia de rede, ainda em planejamento.",
+      "categoria": "saneamento",
+      "secretaria": "Infraestrutura",
+      "dataInicio": null,
+      "dataPrevista": "2027-06-30",
+      "valorPrevistoCentavos": null,
+      "localizacao": {
+        "longitude": -40.116612,
+        "latitude": -2.918162
+      }
+    },
+    "atualizadoEm": "2026-10-28T12:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-10-28T12:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-07",
+    "entrada": {
+      "titulo": "DEMO - Adutora de abastecimento",
+      "situacao": "em_andamento",
+      "descricao": "Adutora fictícia fora da área dos bairros da sede, dentro do município.",
+      "categoria": "saneamento",
+      "secretaria": "Infraestrutura",
+      "dataInicio": "2026-09-01",
+      "dataPrevista": "2027-05-31",
+      "valorPrevistoCentavos": 450000000,
+      "localizacao": {
+        "longitude": -40.14,
+        "latitude": -2.88
+      }
+    },
+    "atualizadoEm": "2026-09-01T12:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "em_andamento",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-09-01T12:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "codigoExemplo": "DEMO-08",
+    "entrada": {
+      "titulo": "DEMO - Área de lazer comunitária",
+      "situacao": "planejada",
+      "descricao": null,
+      "categoria": "praca_lazer",
+      "secretaria": null,
+      "dataInicio": null,
+      "dataPrevista": null,
+      "valorPrevistoCentavos": null,
+      "localizacao": null
+    },
+    "atualizadoEm": "2026-11-15T12:00:00.000Z",
+    "historico": [
+      {
+        "situacaoAnterior": null,
+        "situacaoNova": "planejada",
+        "autorNome": "Equipe da demonstração",
+        "registradoEm": "2026-11-15T12:00:00.000Z"
+      }
+    ]
+  }
+]
