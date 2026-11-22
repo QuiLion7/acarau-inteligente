@@ -11,6 +11,6 @@ export function criarBancoDeTeste(): Banco {
 // TRUNCATE entre testes (test.md §12): cada teste prepara o próprio estado.
 export async function limparTabelas(banco: Banco): Promise<void> {
   await banco.execute(
-    sql`truncate table sessao, tentativa_login, dataset, dataset_versao, dataset_linha restart identity`
+    sql`truncate table sessao, tentativa_login, dataset, dataset_versao, dataset_linha, obra, obra_historico restart identity`
   )
 }
