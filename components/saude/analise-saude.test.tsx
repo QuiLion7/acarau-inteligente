@@ -27,12 +27,15 @@ jest.mock("@/components/territorio/mapa-territorio", () => ({
     coropletico,
     selecionadoId,
     onSelecionar,
+    aoCarregar,
   }: {
     coropletico?: Record<string, { situacao: string; classe: number | null }>
     selecionadoId?: string | null
     onSelecionar: (id: string) => void
+    aoCarregar?: (mapa: object | null) => void
   }) => (
     <div role="group" aria-label="Mapa (double)">
+      <button onClick={() => aoCarregar?.({})}>mapa pronto (double)</button>
       <p>Destaque: {selecionadoId ?? "nenhum"}</p>
       <p>Centro no mapa: {JSON.stringify(coropletico?.["uv-10"])}</p>
       <p>Rodagem no mapa: {JSON.stringify(coropletico?.["uv-13"])}</p>
@@ -64,6 +67,47 @@ async function abrirAbaTabela() {
 }
 
 beforeEach(() => jest.clearAllMocks())
+
+describe("AnaliseSaude: Exportar relatório (CA-05.02)", () => {
+  it("leva o bairro, o período e a versão da URL ao relatório", () => {
+    renderizar(ANALISE_SAUDE, "bairro=uv-10&periodo=2025&versao=v-1")
+
+    const href = screen
+      .getByRole("link", { name: "Exportar relatório" })
+      .getAttribute("href")
+    expect(
+      Object.fromEntries(new URL(href ?? "", "http://x").searchParams)
+    ).toEqual({
+      bairro: "uv-10",
+      periodo: "2025",
+      versao: "v-1",
+    })
+  })
+
+  it("aparece também para o visitante, que não vê as ações do analista", () => {
+    renderizar()
+
+    expect(
+      screen.getByRole("link", { name: "Exportar relatório" })
+    ).toHaveAttribute("href", "/relatorios")
+    expect(screen.queryByRole("link", { name: "Importar CSV" })).toBeNull()
+  })
+})
+
+describe("AnaliseSaude: Baixar mapa (PNG) (RF-05.22, CA-05.13)", () => {
+  it("fica desabilitado até o mapa carregar e habilita quando ele entrega a instância", async () => {
+    const usuario = userEvent.setup()
+    renderizar()
+
+    const botao = screen.getByRole("button", { name: "Baixar mapa (PNG)" })
+    expect(botao).toBeDisabled()
+    await usuario.click(
+      await screen.findByRole("button", { name: "mapa pronto (double)" })
+    )
+
+    expect(botao).toBeEnabled()
+  })
+})
 
 describe("AnaliseSaude: o período mais recente por padrão", () => {
   it("mostra o dataset, o total, a legenda, o ranking e a tabela de 2026, com as mesmas contagens", async () => {

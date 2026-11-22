@@ -1,15 +1,18 @@
 "use client"
 
+import type { Map as MapaMapLibre } from "maplibre-gl"
 import { useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
+import { BotaoBaixarMapa } from "@/components/exportacao/botao-baixar-mapa"
 import { FichaObra } from "@/components/obras/ficha-obra"
 import { FiltroSituacao } from "@/components/obras/filtro-situacao"
 import { FormObra, type ControleDoFormObra } from "@/components/obras/form-obra"
 import { LegendaObras } from "@/components/obras/legenda-obras"
 import { MetodologiaObras } from "@/components/obras/metodologia-obras"
 import { ResumoObras } from "@/components/obras/resumo-obras"
+import { LinkExportarRelatorio } from "@/components/relatorios/link-exportar-relatorio"
 import { TabelaObras, idDoBotaoDaObra } from "@/components/obras/tabela-obras"
 import { MapaTerritorioDinamico } from "@/components/territorio/mapa-territorio-dinamico"
 import { SeletorBairro } from "@/components/territorio/seletor-bairro"
@@ -26,7 +29,13 @@ import { useFiltroBairro } from "@/hooks/use-filtro-bairro"
 import { useFiltroSituacao } from "@/hooks/use-filtro-situacao"
 import { useParametroNovaObra } from "@/hooks/use-parametro-nova-obra"
 import { TEXTOS_OBRAS } from "@/lib/config/textos-obras"
+import {
+  legendaDasObras,
+  legendaDosBairros,
+} from "@/lib/exportacao/legendas-png"
+import { montarMolduraPng } from "@/lib/exportacao/moldura-png"
 import { filtrarObras, resumirObras } from "@/lib/obras/filtro-obras"
+import { ROTULO_SITUACAO_OBRA } from "@/lib/obras/situacao-obra"
 import type { Bairro, LimiteMunicipal } from "@/lib/territorio/artefato-schema"
 import type { IdCamadaControlavel } from "@/lib/territorio/estilo-mapa"
 import {
@@ -53,6 +62,8 @@ type PainelObrasProps = {
   podeEditar: boolean
   /** `/obras?nova=1` (só vale com `podeEditar`): o painel abre direto no formulário de nova obra. */
   abrirNova: boolean
+  /** `/obras?obra=<uuid>` (destino do link da auditoria, RF-05.28): a ficha dessa obra abre ao carregar. */
+  obraInicialId?: string | null
 }
 
 // Composição de Obras (RF-04.01 a RF-04.13): faixa sintética, resumo, filtros, mapa e lista, metodologia. Os filtros
@@ -65,17 +76,19 @@ export function PainelObras({
   regraFronteira,
   podeEditar,
   abrirNova,
+  obraInicialId = null,
 }: PainelObrasProps) {
   const { selecao, selecionar, limpar: limparBairro } = useFiltroBairro(bairros)
   const { situacoes, definir, limparComBairro } = useFiltroSituacao()
   const [obraSelecionadaId, setObraSelecionadaId] = useState<string | null>(
-    null
+    obraInicialId
   )
-  const [fichaAberta, setFichaAberta] = useState(false)
+  const [fichaAberta, setFichaAberta] = useState(obraInicialId !== null)
   const [modo, setModo] = useState<ModoDoPainel>(
     podeEditar && abrirNova ? { tipo: "nova" } : { tipo: "lista" }
   )
   const [pontoProvisorio, setPontoProvisorio] = useState<PontoObra | null>(null)
+  const [mapa, setMapa] = useState<MapaMapLibre | null>(null)
   const formRef = useRef<ControleDoFormObra>(null)
   const novaObraRef = useRef<HTMLButtonElement>(null)
   const { remover: removerNovaDaUrl } = useParametroNovaObra()
@@ -144,13 +157,14 @@ export function PainelObras({
       <Alert>
         <AlertDescription>{TEXTOS_OBRAS.faixaSintetico}</AlertDescription>
       </Alert>
-      {podeEditar ? (
-        <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <LinkExportarRelatorio />
+        {podeEditar ? (
           <Button ref={novaObraRef} type="button" onClick={handleNovaObra}>
             {TEXTOS_OBRAS.acoes.novaObra}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <ResumoObras resumo={resumo} />
       <section
         aria-labelledby="titulo-filtros-obras"
@@ -198,6 +212,7 @@ export function PainelObras({
             obraSelecionadaId={obraSelecionadaId}
             onAbrirObra={handleAbrirObra}
             pontoProvisorio={pontoProvisorio}
+            aoCarregar={setMapa}
             onEscolherPonto={
               modo.tipo === "lista"
                 ? undefined
@@ -208,6 +223,28 @@ export function PainelObras({
           <LegendaObras
             marcadoresPorSituacao={contarMarcadoresDeObras(noMapa)}
           />
+          <div className="flex justify-end">
+            <BotaoBaixarMapa
+              mapa={mapa}
+              moldura={montarMolduraPng({
+                titulo: "Obras - mapa por situação",
+                bairro: selecao.tipo === "bairro" ? selecao.bairro.nome : null,
+                outrosFiltros:
+                  situacoes.length > 0
+                    ? [
+                        `Situação: ${situacoes.map((situacao) => ROTULO_SITUACAO_OBRA[situacao]).join(", ")}`,
+                      ]
+                    : [],
+                legenda: [
+                  ...legendaDosBairros(selecao.tipo === "bairro"),
+                  ...legendaDasObras(),
+                ],
+                sintetico: true,
+              })}
+              tipo="mapa-obras"
+              bairro={selecao.tipo === "bairro" ? selecao.bairro.nome : null}
+            />
+          </div>
         </section>
         {modo.tipo === "lista" ? (
           // Sem `aria-labelledby`: a área rolável da lista é a região nomeada; duas regiões com o mesmo nome confundiriam.
@@ -221,6 +258,9 @@ export function PainelObras({
               bairros={bairros}
               obraSelecionadaId={obraSelecionadaId}
               haFiltro={haFiltro}
+              bairroNome={
+                selecao.tipo === "bairro" ? selecao.bairro.nome : null
+              }
               onAbrirObra={handleAbrirObra}
               onLimparFiltros={limparComBairro}
             />
@@ -280,6 +320,7 @@ type ListaOuEstadoVazioProps = {
   bairros: readonly Pick<Bairro, "id" | "nome">[]
   obraSelecionadaId: string | null
   haFiltro: boolean
+  bairroNome: string | null
   onAbrirObra: (obraId: string) => void
   onLimparFiltros: () => void
 }
@@ -291,6 +332,7 @@ function ListaOuEstadoVazio({
   bairros,
   obraSelecionadaId,
   haFiltro,
+  bairroNome,
   onAbrirObra,
   onLimparFiltros,
 }: ListaOuEstadoVazioProps) {
@@ -318,6 +360,7 @@ function ListaOuEstadoVazio({
       bairros={bairros}
       obraSelecionadaId={obraSelecionadaId}
       onAbrirObra={onAbrirObra}
+      bairroNome={bairroNome}
     />
   )
 }

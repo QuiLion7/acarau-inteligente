@@ -11,6 +11,7 @@ import {
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 import { useState } from "react"
 
+import { BotaoExportarCsv } from "@/components/exportacao/botao-exportar-csv"
 import {
   Table,
   TableBody,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import { TEXTOS_TERRITORIO } from "@/lib/config/textos-territorio"
 import type { Bairro } from "@/lib/territorio/artefato-schema"
+import { COLUNAS_CSV_BAIRROS } from "@/lib/territorio/csv-bairros"
 import { formatarAreaM2 } from "@/lib/territorio/formato"
 import { cn } from "@/lib/utils"
 
@@ -75,6 +77,18 @@ export function TabelaBairros({
 
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex justify-end">
+        <BotaoExportarCsv
+          colunas={COLUNAS_CSV_BAIRROS}
+          obterLinhas={() =>
+            tabela
+              .getPrePaginationRowModel()
+              .rows.map(({ original }) => original)
+          }
+          tipo="bairros"
+          descricao="bairros da sede"
+        />
+      </div>
       <Table>
         <TableCaption className="sr-only">
           Bairros da sede, com área calculada e número de escolas da base

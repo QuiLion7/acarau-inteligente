@@ -1,6 +1,6 @@
-import AxeBuilder from "@axe-core/playwright"
 import type { Page } from "@playwright/test"
 
+import { violacoesGraves } from "./acessibilidade-helpers"
 import { expect, test } from "./fixtures"
 import { aguardarMapaPronto, clicarNoPonto, ESCOLAS } from "./mapa-helpers"
 
@@ -10,13 +10,6 @@ const faixaDe = (page: Page) =>
   page.getByRole("region", { name: "Contexto da consulta" })
 const bairroDaFaixa = (page: Page) =>
   faixaDe(page).getByText(BAIRRO_FAIXA).locator("xpath=following-sibling::dd")
-
-async function violacoesGraves(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).analyze()
-  return violations.filter(
-    ({ impact }) => impact === "serious" || impact === "critical"
-  )
-}
 
 test.describe("jornada do Território", () => {
   test("roteiro de 0 a 2 minutos: Início, Território, busca, bairro, escolas, ficha e Fontes, com axe", async ({

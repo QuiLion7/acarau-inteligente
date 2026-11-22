@@ -22,7 +22,9 @@ jest.mock("@/components/territorio/mapa-territorio", () => ({
     camadasLigadas,
     onSelecionar,
     onAbrirEscola,
+    aoCarregar,
   }: {
+    aoCarregar?: (mapa: object | null) => void
     bairros: { id: string; nome: string }[]
     escolas: { codigoInep: string; nome: string; posicao: unknown }[]
     selecionadoId: string | null
@@ -31,6 +33,7 @@ jest.mock("@/components/territorio/mapa-territorio", () => ({
     onAbrirEscola: (codigoInep: string) => void
   }) => (
     <div role="group" aria-label="Mapa (double)">
+      <button onClick={() => aoCarregar?.({})}>mapa pronto (double)</button>
       <p>Selecionado no mapa: {selecionadoId ?? "nenhum"}</p>
       <p>
         Camadas ligadas: {[...camadasLigadas].sort().join(",") || "nenhuma"}
@@ -67,6 +70,21 @@ async function renderizar(consulta = "") {
   await screen.findByRole("group", { name: "Mapa (double)" })
   return resultado
 }
+
+describe("ExploradorTerritorio: Baixar mapa (PNG) (RF-05.22, CA-05.13)", () => {
+  it("fica desabilitado até o mapa carregar e habilita quando ele entrega a instância", async () => {
+    const usuario = userEvent.setup()
+    await renderizar()
+
+    const botao = screen.getByRole("button", { name: "Baixar mapa (PNG)" })
+    expect(botao).toBeDisabled()
+    await usuario.click(
+      screen.getByRole("button", { name: "mapa pronto (double)" })
+    )
+
+    expect(botao).toBeEnabled()
+  })
+})
 
 describe("ExploradorTerritorio", () => {
   beforeEach(() => replace.mockClear())

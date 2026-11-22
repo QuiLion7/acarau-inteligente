@@ -1,8 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
+import type { Map as MapaMapLibre } from "maplibre-gl"
+import { useMemo, useState } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
+import { BotaoBaixarMapa } from "@/components/exportacao/botao-baixar-mapa"
 import { AcoesAnalista } from "@/components/saude/acoes-analista"
 import { AbasAnalise } from "@/components/saude/abas-analise"
 import { CabecalhoDataset } from "@/components/saude/cabecalho-dataset"
@@ -11,6 +13,7 @@ import { CardsSaude } from "@/components/saude/cards-saude"
 import { GraficoPeriodosDinamico } from "@/components/saude/grafico-periodos-dinamico"
 import { LegendaCoropletico } from "@/components/saude/legenda-coropletico"
 import { MapaCoropletico } from "@/components/saude/mapa-coropletico"
+import { LinkExportarRelatorio } from "@/components/relatorios/link-exportar-relatorio"
 import { MetodologiaSaude } from "@/components/saude/metodologia-saude"
 import { RankingBairros } from "@/components/saude/ranking-bairros"
 import { SeletorPeriodo } from "@/components/saude/seletor-periodo"
@@ -20,6 +23,8 @@ import { SeletorBairro } from "@/components/territorio/seletor-bairro"
 import { Button } from "@/components/ui/button"
 import { useFiltroBairro } from "@/hooks/use-filtro-bairro"
 import { useFiltroPeriodo } from "@/hooks/use-filtro-periodo"
+import { legendaDoCoropletico } from "@/lib/exportacao/legendas-png"
+import { montarMolduraPng } from "@/lib/exportacao/moldura-png"
 import type { AnaliseDatasetSaude } from "@/lib/saude/analise-dataset"
 import { montarAnalisePeriodo } from "@/lib/saude/analise-periodo"
 import { ordenarRanking, posicaoNoRanking } from "@/lib/saude/ranking"
@@ -48,6 +53,7 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
     limpar: limparBairro,
   } = useFiltroBairro(bairros)
   const periodo = resolucao.tipo === "sem-dados" ? null : resolucao.periodo
+  const [mapaMapLibre, setMapaMapLibre] = useState<MapaMapLibre | null>(null)
   const bairroSelecionado = selecao.tipo === "bairro" ? selecao.bairro : null
   const selecionadoId = bairroSelecionado?.id ?? null
 
@@ -78,7 +84,12 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
   return (
     <div className="flex flex-col gap-8">
       <CabecalhoDataset dataset={dataset} versao={versao} />
-      {podeGerenciar ? <AcoesAnalista versao={versao} /> : null}
+      <div className="flex flex-wrap items-start gap-4">
+        {podeGerenciar ? <AcoesAnalista versao={versao} /> : null}
+        <div className="ml-auto">
+          <LinkExportarRelatorio />
+        </div>
+      </div>
       <div className="flex flex-wrap gap-4">
         {opcoes.length > 1 ? (
           <SeletorVersao opcoes={opcoes} versaoId={versao.id} />
@@ -128,24 +139,55 @@ export function AnaliseSaude({ analise, mapa }: AnaliseSaudeProps) {
           ) : null}
           <AbasAnalise
             mapa={
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <MapaCoropletico
-                  mapa={mapa}
-                  analise={analisePeriodo}
-                  selecionadoId={selecionadoId}
-                  onSelecionar={selecionarBairro}
-                />
-                <LegendaCoropletico
-                  indicador={dataset.indicador}
-                  unidade={dataset.unidade}
-                  periodo={periodo}
-                  classes={analisePeriodo.classes}
-                  foraDaCobertura={analisePeriodo.foraDaCobertura}
-                />
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-end">
+                  <BotaoBaixarMapa
+                    mapa={mapaMapLibre}
+                    moldura={montarMolduraPng({
+                      titulo: `Saúde - ${dataset.indicador}`,
+                      bairro: bairroSelecionado?.nome ?? null,
+                      outrosFiltros: [
+                        `Período: ${periodo}`,
+                        `Dataset: ${dataset.nome}, versão ${versao.numero}`,
+                        ...(versao.situacao === "privado"
+                          ? ["Versão não publicada - uso interno"]
+                          : []),
+                      ],
+                      legenda: legendaDoCoropletico(
+                        analisePeriodo.classes,
+                        bairroSelecionado !== null
+                      ),
+                      sintetico: true,
+                    })}
+                    tipo="mapa-saude"
+                    bairro={bairroSelecionado?.nome}
+                  />
+                </div>
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                  <MapaCoropletico
+                    mapa={mapa}
+                    analise={analisePeriodo}
+                    selecionadoId={selecionadoId}
+                    onSelecionar={selecionarBairro}
+                    aoCarregar={setMapaMapLibre}
+                  />
+                  <LegendaCoropletico
+                    indicador={dataset.indicador}
+                    unidade={dataset.unidade}
+                    periodo={periodo}
+                    classes={analisePeriodo.classes}
+                    foraDaCobertura={analisePeriodo.foraDaCobertura}
+                  />
+                </div>
               </div>
             }
             tabela={
               <TabelaCasosBairros
+                exportacao={{
+                  periodo,
+                  proveniencia: dataset.proveniencia,
+                  bairro: bairroSelecionado?.nome ?? null,
+                }}
                 itens={analisePeriodo.bairros}
                 selecionadoId={selecionadoId}
                 onSelecionar={selecionarBairro}

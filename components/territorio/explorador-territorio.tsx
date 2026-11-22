@@ -1,8 +1,10 @@
 "use client"
 
+import type { Map as MapaMapLibre } from "maplibre-gl"
 import { useRef, useState } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
+import { BotaoBaixarMapa } from "@/components/exportacao/botao-baixar-mapa"
 import { ControleCamadas } from "@/components/territorio/controle-camadas"
 import { FichaBairro } from "@/components/territorio/ficha-bairro"
 import { LegendaMapa } from "@/components/territorio/legenda-mapa"
@@ -25,6 +27,11 @@ import {
   CAMADAS_CONTROLAVEIS,
   type IdCamadaControlavel,
 } from "@/lib/territorio/estilo-mapa"
+import {
+  legendaDasEscolas,
+  legendaDosBairros,
+} from "@/lib/exportacao/legendas-png"
+import { montarMolduraPng } from "@/lib/exportacao/moldura-png"
 import { contarMarcadores } from "@/lib/territorio/filtro-escolas"
 
 // O controle só oferece camada que o mapa desenha e que a carga gravou (RN-005, CA-01.06).
@@ -75,6 +82,7 @@ export function ExploradorTerritorio({
   const [codigoEscolaAberta, setCodigoEscolaAberta] = useState<string | null>(
     null
   )
+  const [mapa, setMapa] = useState<MapaMapLibre | null>(null)
   const escolaAberta =
     escolas.find(({ codigoInep }) => codigoInep === codigoEscolaAberta) ?? null
   // Seleção pela lista tira o botão da tela; o foco vai ao título da ficha quando ela monta (RF-02.46).
@@ -132,7 +140,24 @@ export function ExploradorTerritorio({
             camadasLigadas={camadasLigadas}
             onSelecionar={handleSelecionar}
             onAbrirEscola={handleAbrirEscola}
+            aoCarregar={setMapa}
           />
+          <div className="flex justify-end">
+            <BotaoBaixarMapa
+              mapa={mapa}
+              moldura={montarMolduraPng({
+                titulo: "Território - bairros e escolas",
+                bairro: selecionado?.nome ?? null,
+                legenda: [
+                  ...legendaDosBairros(selecionado !== null),
+                  ...(camadasLigadas.has("escolas") ? legendaDasEscolas() : []),
+                ],
+                sintetico: false,
+              })}
+              tipo="mapa-territorio"
+              bairro={selecionado?.nome}
+            />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <ControleCamadas
               camadas={CAMADAS_DO_CONTROLE}

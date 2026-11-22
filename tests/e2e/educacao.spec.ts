@@ -1,6 +1,6 @@
-import AxeBuilder from "@axe-core/playwright"
 import type { Page } from "@playwright/test"
 
+import { violacoesGraves } from "./acessibilidade-helpers"
 import { expect, test } from "./fixtures"
 import {
   aguardarMapaPronto,
@@ -9,13 +9,6 @@ import {
   ESCOLAS,
   type MapaNoRecipiente,
 } from "./mapa-helpers"
-
-async function violacoesGraves(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).analyze()
-  return violations.filter(
-    ({ impact }) => impact === "serious" || impact === "critical"
-  )
-}
 
 const mapaDaEducacao = (page: Page) =>
   page.getByRole("region", { name: "Mapa das escolas por bairro de Acaraú" })
@@ -57,9 +50,10 @@ test.describe("Educação: visitante sem sessão", () => {
     await expect(
       page.getByRole("heading", { name: "Lista de escolas" })
     ).toBeVisible()
+    // Exportar (CSV e relatório) é leitura e vale para o visitante (RN-05.05); só a escrita fica de fora.
     await expect(
       page.locator("#conteudo").getByRole("button", {
-        name: /importar|publicar|reiniciar|exportar|excluir|salvar/i,
+        name: /importar|publicar|reiniciar|excluir|salvar/i,
       })
     ).toHaveCount(0)
     await expect(
@@ -288,6 +282,8 @@ test.describe("Educação: metodologia e acessibilidade", () => {
     await expect(
       page.getByRole("heading", { name: "Bairro não reconhecido" })
     ).toBeVisible()
+    // O botão "Baixar mapa (PNG)" habilita quando o mapa carrega; o axe lido antes disso pega o botão na transição de cor.
+    await aguardarMapaPronto(mapaDaEducacao(page))
     expect(await violacoesGraves(page)).toEqual([])
   })
 })

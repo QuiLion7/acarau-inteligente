@@ -5,26 +5,17 @@ import { EstadoInterface } from "@/components/estados/estado-interface"
 import { AnaliseSaude } from "@/components/saude/analise-saude"
 import { buttonVariants } from "@/components/ui/button"
 import { moduloPorId } from "@/lib/config/modulos"
+import { lerVersaoDaUrl } from "@/lib/filtros/versao-da-url"
 import { obterSessaoAtual } from "@/lib/server/auth/dal"
 import { montarAnaliseDataset } from "@/lib/server/datasets/analise-dataset-servico"
 import { obterBanco } from "@/lib/server/db/cliente"
 import { obterDadosMapaResumo } from "@/lib/server/territorio/territorio-repositorio"
-import { idVersaoSchema } from "@/lib/validations/datasets-schema"
 
 const modulo = moduloPorId("saude")
 
 export const metadata: Metadata = { title: modulo.rotulo }
 
 type ParametrosDaUrl = Record<string, string | string[] | undefined>
-
-// `versao` fora do formato de uuid conta como ausente: nada do valor bruto é usado nem exibido (RF-02.28).
-function lerVersaoDaUrl(parametros: ParametrosDaUrl): string | null {
-  const bruto = parametros.versao
-  const valido = idVersaoSchema.safeParse(
-    Array.isArray(bruto) ? bruto[0] : bruto
-  )
-  return valido.success ? valido.data : null
-}
 
 // Server Component (DV-17, DV-25): lê a sessão e o repositório e só entrega ao cliente a versão que o papel pode ver.
 export default async function PaginaSaude({

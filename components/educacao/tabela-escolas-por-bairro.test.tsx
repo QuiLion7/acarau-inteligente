@@ -1,5 +1,7 @@
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { baixarBlob } from "@/lib/exportacao/baixar-arquivo"
+import { linhasDoCsvBaixado } from "@/test/csv-teste"
 
 import { TabelaEscolasPorBairro } from "@/components/educacao/tabela-escolas-por-bairro"
 import { obterDadosTerritorio } from "@/lib/server/territorio/territorio-repositorio"
@@ -112,5 +114,31 @@ describe("TabelaEscolasPorBairro (TU-22, CA-03.18, RN-03.07)", () => {
     )
 
     expect(onSelecionar).toHaveBeenCalledWith("uv-13")
+  })
+})
+
+jest.mock("@/lib/exportacao/baixar-arquivo", () => ({ baixarBlob: jest.fn() }))
+
+describe("TabelaEscolasPorBairro: Exportar CSV (RF-05.18, DV-39)", () => {
+  beforeEach(() => jest.mocked(baixarBlob).mockClear())
+
+  it("exporta os 24 bairros e as três linhas fora da soma (33, 1 e 4)", async () => {
+    const usuario = userEvent.setup()
+    renderizar()
+
+    await usuario.click(
+      screen.getByRole("button", { name: "Exportar CSV: escolas por bairro" })
+    )
+
+    const linhas = await linhasDoCsvBaixado(
+      jest.mocked(baixarBlob).mock.calls[0][0]
+    )
+    expect(linhas).toHaveLength(1 + 24 + 3)
+    expect(linhas[0]).toBe("UV;Bairro;Escolas")
+    expect(linhas.slice(-3)).toEqual([
+      "fora da soma;Fora da cobertura dos bairros;33",
+      "fora da soma;Fora do limite municipal;1",
+      "fora da soma;Sem localização;4",
+    ])
   })
 })

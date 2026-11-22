@@ -10,6 +10,7 @@ import {
 import { useMemo, useState } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
+import { BotaoExportarCsv } from "@/components/exportacao/botao-exportar-csv"
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -36,6 +37,7 @@ import {
   type Bairro,
   type Escola,
 } from "@/lib/territorio/artefato-schema"
+import { COLUNAS_CSV_ESCOLAS } from "@/lib/territorio/csv-escolas"
 import {
   ESTADOS_COM_COBERTURA,
   ROTULO_ESTADO_ESCOLA,
@@ -211,6 +213,19 @@ export function TabelaEscolas({
           {TEXTOS_TERRITORIO.limparFiltros}
         </Button>
       ) : null}
+      <div className="flex justify-end">
+        <BotaoExportarCsv
+          colunas={COLUNAS_CSV_ESCOLAS}
+          obterLinhas={() =>
+            tabela
+              .getPrePaginationRowModel()
+              .rows.map(({ original }) => original)
+          }
+          tipo="escolas"
+          bairro={bairroSelecionado?.nome}
+          descricao="lista de escolas"
+        />
+      </div>
       <Table>
         <TableCaption className="sr-only">
           Escolas da base disponível, com dependência, localização e cobertura

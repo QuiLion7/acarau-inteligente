@@ -128,6 +128,11 @@ type MapaTerritorioProps = {
   onEscolherPonto?: (ponto: PontoObra) => void
   /** Nome acessível da região do mapa, quando o padrão do modo não descreve o uso. */
   rotulo?: string
+  /**
+   * Entrega o mapa MapLibre quando o estilo carrega e `null` quando ele é removido (RF-05.22): quem exporta o PNG precisa
+   * da instância. Nada mais muda no mapa; passe uma referência estável (um `useState` setter).
+   */
+  aoCarregar?: (mapa: MapaMapLibre | null) => void
 }
 
 // Mapa MapLibre sem wrapper (DV-20). O efeito sincroniza o React com um sistema externo (o canvas WebGL): cria o
@@ -148,6 +153,7 @@ export function MapaTerritorio({
   pontoProvisorio = null,
   onEscolherPonto,
   rotulo,
+  aoCarregar,
 }: MapaTerritorioProps) {
   const recipienteRef = useRef<HTMLDivElement>(null)
   const mapaRef = useRef<MapaMapLibre | null>(null)
@@ -181,6 +187,9 @@ export function MapaTerritorio({
   })
   const abrirEscola = useEffectEvent((codigoInep: string) =>
     onAbrirEscola?.(codigoInep)
+  )
+  const entregarMapa = useEffectEvent((mapa: MapaMapLibre | null) =>
+    aoCarregar?.(mapa)
   )
   const abrirObra = useEffectEvent((obraId: string) => {
     if (!escolhendoPonto()) onAbrirObra?.(obraId)
@@ -265,9 +274,11 @@ export function MapaTerritorio({
       void aplicarObras(mapa)
       aplicarObraSelecionada(mapa)
       void aplicarPontoProvisorio(mapa)
+      entregarMapa(mapa)
     })
 
     return () => {
+      entregarMapa(null)
       delete recipiente.dataset.mapaPronto
       Reflect.deleteProperty(recipiente, "mapa")
       mapa.remove()

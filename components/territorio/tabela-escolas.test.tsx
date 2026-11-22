@@ -1,5 +1,7 @@
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { baixarBlob } from "@/lib/exportacao/baixar-arquivo"
+import { linhasDoCsvBaixado } from "@/test/csv-teste"
 
 import { TabelaEscolas } from "@/components/territorio/tabela-escolas"
 import { obterDadosTerritorio } from "@/lib/server/territorio/territorio-repositorio"
@@ -267,5 +269,51 @@ describe("TabelaEscolas com busca (TU-24, CA-03.21, CA-03.22, PA-03.05)", () => 
     expect(
       screen.getByRole("heading", { name: "Nenhuma escola encontrada" })
     ).toBeVisible()
+  })
+})
+
+jest.mock("@/lib/exportacao/baixar-arquivo", () => ({ baixarBlob: jest.fn() }))
+
+describe("TabelaEscolas: Exportar CSV (RF-05.18, CA-05.12)", () => {
+  beforeEach(() => jest.mocked(baixarBlob).mockClear())
+
+  it("exporta as 62 escolas de todas as páginas, não só as 10 da página atual", async () => {
+    const usuario = userEvent.setup()
+    renderizar()
+
+    await usuario.click(
+      screen.getByRole("button", { name: "Exportar CSV: lista de escolas" })
+    )
+
+    const linhas = await linhasDoCsvBaixado(
+      jest.mocked(baixarBlob).mock.calls[0][0]
+    )
+    expect(linhas).toHaveLength(1 + 62)
+    expect(linhas[0]).toBe(
+      "Escola;Código INEP;Dependência;Localização;Bairro;Cobertura"
+    )
+    expect(
+      linhas.slice(1).every((linha) => linha.split(";").every((c) => c !== ""))
+    ).toBe(true)
+  })
+
+  it("exporta só as linhas do filtro atual e leva o bairro escolhido no nome do arquivo", async () => {
+    const usuario = userEvent.setup()
+    renderizar("uv-10")
+    await filtrar("Dependência", "Municipal")
+
+    await usuario.click(
+      screen.getByRole("button", { name: "Exportar CSV: lista de escolas" })
+    )
+
+    const [blob, nome] = jest.mocked(baixarBlob).mock.calls[0]
+    expect(nome).toMatch(/_centro\.csv$/)
+    const linhas = (await linhasDoCsvBaixado(blob)).slice(1)
+    expect(linhas.length).toBeGreaterThan(0)
+    expect(
+      linhas.every(
+        (linha) => linha.includes(";Municipal;") && linha.includes(";Centro;")
+      )
+    ).toBe(true)
   })
 })

@@ -22,18 +22,20 @@ jest.mock("@/components/obras/painel-obras", () => ({
     regraFronteira,
     podeEditar,
     abrirNova,
+    obraInicialId,
   }: {
     obras: unknown[]
     bairros: unknown[]
     regraFronteira: string
     podeEditar: boolean
     abrirNova: boolean
+    obraInicialId?: string | null
   }) => (
     <p>
       Painel com {obras.length} obras, {bairros.length} bairros e a regra{" "}
       {regraFronteira ? "do artefato" : "ausente"}; edição{" "}
       {podeEditar ? "liberada" : "bloqueada"}; nova obra{" "}
-      {abrirNova ? "aberta" : "fechada"}
+      {abrirNova ? "aberta" : "fechada"}; ficha {obraInicialId ?? "nenhuma"}
     </p>
   ),
 }))
@@ -114,6 +116,45 @@ describe("página Obras (PA-04.01)", () => {
       .map(([linha]) => JSON.parse(String(linha)))
       .filter(({ evento }) => evento === "obras.leitura_falhou")
     expect(eventos).toHaveLength(1)
+  })
+})
+
+describe("parâmetro obra (RF-05.28, CA-05.32)", () => {
+  const ID_EXISTENTE = "6f1c2d3e-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
+  const ID_AUSENTE = "11111111-2222-4333-8444-555555555555"
+
+  it("abre a ficha da obra pedida quando ela existe", async () => {
+    jest
+      .mocked(listarObras)
+      .mockResolvedValue([montarObra({ id: ID_EXISTENTE })])
+
+    await abrir(null, { obra: ID_EXISTENTE })
+
+    expect(screen.getByText(new RegExp(`ficha ${ID_EXISTENTE}`))).toBeVisible()
+  })
+
+  it.each([
+    ["uuid de obra que não existe", ID_AUSENTE],
+    ["texto que não é uuid", "../../etc/passwd"],
+    ["valor vazio", ""],
+  ])("ignora %s: a página abre como sempre", async (_nome, obra) => {
+    jest
+      .mocked(listarObras)
+      .mockResolvedValue([montarObra({ id: ID_EXISTENTE })])
+
+    await abrir(null, { obra })
+
+    expect(screen.getByText(/ficha nenhuma/)).toBeVisible()
+  })
+
+  it("usa o primeiro valor quando o parâmetro vem repetido", async () => {
+    jest
+      .mocked(listarObras)
+      .mockResolvedValue([montarObra({ id: ID_EXISTENTE })])
+
+    await abrir(null, { obra: [ID_EXISTENTE, ID_AUSENTE] })
+
+    expect(screen.getByText(new RegExp(`ficha ${ID_EXISTENTE}`))).toBeVisible()
   })
 })
 

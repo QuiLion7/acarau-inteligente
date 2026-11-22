@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-table"
 import { useEffect, useMemo, useRef } from "react"
 
+import { BotaoExportarCsv } from "@/components/exportacao/botao-exportar-csv"
 import { SimboloObra } from "@/components/obras/simbolo-obra"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/table"
 import { TEXTOS_OBRAS } from "@/lib/config/textos-obras"
 import { rotuloDoBairroDaObra } from "@/lib/obras/apresentacao-obra"
+import { colunasCsvObras } from "@/lib/obras/csv-obras"
 import {
   ROTULO_CATEGORIA_OBRA,
   ROTULO_SITUACAO_OBRA,
@@ -44,6 +46,8 @@ type TabelaObrasProps = {
   bairros: readonly { id: string; nome: string }[]
   obraSelecionadaId: string | null
   onAbrirObra: (obraId: string) => void
+  /** Bairro do filtro, para o nome do arquivo do CSV; `null` = todos os bairros. */
+  bairroNome?: string | null
 }
 
 // Colunas fora do componente: referência estável (react-next §7). A coluna da obra é desenhada pela tabela, que é
@@ -95,6 +99,7 @@ export function TabelaObras({
   bairros,
   obraSelecionadaId,
   onAbrirObra,
+  bairroNome = null,
 }: TabelaObrasProps) {
   const areaRef = useRef<HTMLDivElement>(null)
   const linhas = useMemo(
@@ -123,8 +128,23 @@ export function TabelaObras({
       ?.scrollIntoView({ block: "nearest" })
   }, [obraSelecionadaId])
 
+  const colunasCsv = useMemo(() => colunasCsvObras(bairros), [bairros])
+
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex justify-end">
+        <BotaoExportarCsv
+          colunas={colunasCsv}
+          obterLinhas={() =>
+            tabela
+              .getPrePaginationRowModel()
+              .rows.map(({ original }) => original)
+          }
+          tipo="obras"
+          bairro={bairroNome}
+          descricao="lista de obras"
+        />
+      </div>
       <div
         ref={areaRef}
         // Área rolável focável: sem isso quem usa só o teclado não rola a lista (WCAG 2.1.1).

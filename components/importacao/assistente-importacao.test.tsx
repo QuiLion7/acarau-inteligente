@@ -95,7 +95,7 @@ describe("AssistenteImportacao: envio", () => {
     expect(
       screen.getByRole("heading", { name: "Enviar arquivo" })
     ).toBeVisible()
-    expect(screen.getByText(/Até 5 MB e 10\.000 linhas/)).toBeVisible()
+    expect(screen.getByText(/Até 4 MB e 10\.000 linhas/)).toBeVisible()
     expect(
       screen.queryByRole("heading", { name: "Colunas do arquivo" })
     ).toBeNull()
@@ -703,7 +703,7 @@ describe("AssistenteImportacao: confirmar (RF-02.19, RF-02.22)", () => {
       "CONTEUDO_JA_IMPORTADO",
       "Este arquivo já foi importado no dataset X (versão 1).",
     ],
-    [413, "ARQUIVO_GRANDE_DEMAIS", "O arquivo é maior que o limite de 5 MB."],
+    [413, "ARQUIVO_GRANDE_DEMAIS", "O arquivo é maior que o limite de 4 MB."],
     [422, "IMPORTACAO_INVALIDA", "A importação não pôde ser confirmada."],
   ])(
     "%s mostra a mensagem do envelope e fica na confirmação",
