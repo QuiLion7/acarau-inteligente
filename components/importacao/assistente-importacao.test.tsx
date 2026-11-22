@@ -512,13 +512,17 @@ async function chegarNaConfirmacao(usuario: Usuario) {
   await screen.findByRole("heading", { name: "Confirmar importação" })
 }
 
+// Colar em vez de digitar tecla a tecla: o campo recebe o mesmo valor com um evento só, e o teste deixa de gastar
+// dezenas de renders por campo (sob carga, digitar estourava o timeout dos casos de erro da confirmação).
+async function preencher(usuario: Usuario, campo: string, valor: string) {
+  await usuario.click(screen.getByLabelText(campo))
+  await usuario.paste(valor)
+}
+
 async function preencherMetadados(usuario: Usuario) {
-  await usuario.type(
-    screen.getByLabelText("Nome do dataset"),
-    "Roteiro 2025-2026"
-  )
-  await usuario.type(screen.getByLabelText("Indicador"), "Casos notificados")
-  await usuario.type(screen.getByLabelText("Fonte"), "Planilha de roteiro")
+  await preencher(usuario, "Nome do dataset", "Roteiro 2025-2026")
+  await preencher(usuario, "Indicador", "Casos notificados")
+  await preencher(usuario, "Fonte", "Planilha de roteiro")
 }
 
 describe("AssistenteImportacao: conteúdo já importado (TU-23, CA-02.14)", () => {
