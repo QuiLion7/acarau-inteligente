@@ -2,14 +2,16 @@ import type { Map as MapaMapLibre, MapGeoJSONFeature } from "maplibre-gl"
 
 import {
   CAMADAS_MAPA,
-  desenharHachuraSemDados,
-  desenharIconeEscola,
   ehErroDoFundo,
   ESTADO_BAIRRO,
   FONTES_MAPA,
   ICONES_ESCOLA,
   IMAGEM_SEM_DADOS,
 } from "@/lib/territorio/estilo-mapa"
+import {
+  desenharHachuraSemDados,
+  desenharIconeEscola,
+} from "@/lib/territorio/imagens-mapa"
 
 // Registros de evento do mapa do Território, um por conceito (DV-28). Cada função só liga os ouvintes; quem monta o
 // mapa decide o que fazer com o resultado.

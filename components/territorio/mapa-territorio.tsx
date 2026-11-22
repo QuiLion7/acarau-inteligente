@@ -27,14 +27,17 @@ import type {
   LimiteMunicipal,
 } from "@/lib/territorio/artefato-schema"
 import {
-  bairrosParaGeoJson,
-  calcularEnquadramento,
+  type DadosCoropletico,
+  type DadosDoMapa,
   FONTES_MAPA,
+  type IdCamadaControlavel,
   montarEstilo,
   visibilidadePorCamadaDoEstilo,
-  type DadosCoropletico,
-  type IdCamadaControlavel,
 } from "@/lib/territorio/estilo-mapa"
+import {
+  bairrosParaGeoJson,
+  calcularEnquadramento,
+} from "@/lib/territorio/geojson-mapa"
 
 // Turbopack só emite o worker do MapLibre como asset se a URL vier de `new URL(..., import.meta.url)` (docs do
 // MapLibre, "Installation > Turbopack"); sem isto o worker não carrega e o mapa fica em branco.
@@ -59,6 +62,29 @@ const CLASSE_ALTURA = {
   completo: "h-96 lg:h-[32rem]",
   resumo: "h-72 lg:h-96",
 } as const
+
+type Modo = keyof typeof ROTULO_DO_MODO
+
+/** Cria o mapa MapLibre; devolve `null` sem WebGL (RN-023), para o chamador mostrar o estado de erro. */
+function criarMapa(
+  recipiente: HTMLElement,
+  dados: DadosDoMapa,
+  modo: Modo
+): MapaMapLibre | null {
+  try {
+    return new MapaMapLibre({
+      container: recipiente,
+      style: montarEstilo(dados),
+      bounds: calcularEnquadramento(dados.bairros),
+      fitBoundsOptions: { padding: PREENCHIMENTO_ENQUADRAMENTO_PX },
+      // No Início a roda do mouse rola a página; o zoom fica nos botões e no gesto de pinça.
+      scrollZoom: modo !== "resumo",
+    })
+  } catch (erro) {
+    if (!(erro instanceof GPUInitializationError)) throw erro
+    return null
+  }
+}
 
 type MapaTerritorioProps = {
   /** `completo` é o explorador; `resumo` é o mapa do Início, só para navegar até o bairro. */
@@ -145,19 +171,8 @@ export function MapaTerritorio({
     if (teveErro || !recipiente) return
 
     const dados = dadosDoMapa()
-    let mapa: MapaMapLibre
-    try {
-      mapa = new MapaMapLibre({
-        container: recipiente,
-        style: montarEstilo(dados),
-        bounds: calcularEnquadramento(dados.bairros),
-        fitBoundsOptions: { padding: PREENCHIMENTO_ENQUADRAMENTO_PX },
-        // No Início a roda do mouse rola a página; o zoom fica nos botões e no gesto de pinça.
-        scrollZoom: modo !== "resumo",
-      })
-    } catch (erro) {
-      // WebGL indisponível (RN-023): o mapa vira estado de erro e o resto da tela segue funcionando.
-      if (!(erro instanceof GPUInitializationError)) throw erro
+    const mapa = criarMapa(recipiente, dados, modo)
+    if (!mapa) {
       // Adiado de propósito: a criação falha de forma síncrona e o estado só muda depois do efeito.
       queueMicrotask(() => setTeveErro(true))
       return
