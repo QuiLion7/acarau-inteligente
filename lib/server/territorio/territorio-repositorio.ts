@@ -35,7 +35,7 @@ export function criarRepositorioTerritorio(
   if (!resultado.success) {
     throw new ArtefatoTerritorioInvalidoErro({ cause: resultado.error })
   }
-  const { bairros, limite, escolas, qualidade } = resultado.data
+  const { regraFronteira, bairros, limite, escolas, qualidade } = resultado.data
   const resumos = bairros.map(({ id, uv, nome, nomeLei }) => ({
     id,
     uv,
@@ -44,7 +44,13 @@ export function criarRepositorioTerritorio(
   }))
   return {
     listarResumoBairros: () => resumos,
-    obterDadosTerritorio: () => ({ bairros, limite, escolas, qualidade }),
+    obterDadosTerritorio: () => ({
+      regraFronteira,
+      bairros,
+      limite,
+      escolas,
+      qualidade,
+    }),
     obterDadosMapaResumo: () => ({ bairros, limite }),
     resolverIdBairro: (id) =>
       resumos.find((resumo) => resumo.id === id) ?? null,

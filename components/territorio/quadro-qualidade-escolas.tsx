@@ -4,6 +4,7 @@ import {
   textoEscolasGeorreferenciadas,
 } from "@/lib/config/textos-territorio"
 import type { QualidadeEscolas } from "@/lib/territorio/artefato-schema"
+import { foraDaCoberturaDosBairros } from "@/lib/territorio/contagem-cobertura"
 
 type QuadroQualidadeEscolasProps = {
   qualidade: QualidadeEscolas
@@ -44,7 +45,7 @@ export function QuadroQualidadeEscolas({
         />
         <Indicador
           rotulo="Fora da cobertura dos bairros"
-          total={qualidade.foraDaCobertura}
+          total={foraDaCoberturaDosBairros(qualidade)}
         />
         <Indicador
           rotulo="Fora do limite municipal"
@@ -79,7 +80,11 @@ type ListaDeEscolasProps = {
   aviso?: string
 }
 
-function ListaDeEscolas({ titulo, escolas, aviso }: ListaDeEscolasProps) {
+export function ListaDeEscolas({
+  titulo,
+  escolas,
+  aviso,
+}: ListaDeEscolasProps) {
   if (escolas.length === 0) return null
   return (
     <div className="flex flex-col gap-2">
