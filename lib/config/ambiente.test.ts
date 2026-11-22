@@ -37,7 +37,30 @@ describe("lerAmbiente", () => {
       LOGIN_JANELA_MIN: 15,
       LOGIN_BLOQUEIO_MIN: 15,
       LOG_NIVEL: "info",
+      PRE_CARREGAR_NA_SUBIDA: true,
+      DB_POOL_MAX: 10,
     })
+  })
+
+  it("lê PRE_CARREGAR_NA_SUBIDA e DB_POOL_MAX quando informadas (TU-18)", () => {
+    const ambiente = lerAmbiente({
+      ...ambienteValido,
+      PRE_CARREGAR_NA_SUBIDA: "false",
+      DB_POOL_MAX: "3",
+    })
+
+    expect(ambiente.PRE_CARREGAR_NA_SUBIDA).toBe(false)
+    expect(ambiente.DB_POOL_MAX).toBe(3)
+  })
+
+  it.each([
+    ["PRE_CARREGAR_NA_SUBIDA", "talvez"],
+    ["DB_POOL_MAX", "0"],
+    ["DB_POOL_MAX", "tres"],
+  ])("recusa %s=%s citando só o nome da variável (TU-18)", (nome, valor) => {
+    expect(variaveisInvalidas({ ...ambienteValido, [nome]: valor })).toEqual([
+      nome,
+    ])
   })
 
   it("lê os números informados como inteiros", () => {

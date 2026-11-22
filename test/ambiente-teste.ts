@@ -37,6 +37,8 @@ export async function criarAmbienteDeTeste(
     LOGIN_JANELA_MIN: 15,
     LOGIN_BLOQUEIO_MIN: 15,
     LOG_NIVEL: "info",
+    PRE_CARREGAR_NA_SUBIDA: true,
+    DB_POOL_MAX: 10,
     ...sobrescritas,
   }
 }
