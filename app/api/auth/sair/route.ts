@@ -7,7 +7,7 @@ import {
 } from "@/lib/server/auth/cookie-sessao"
 import { encerrarSessao, validarSessao } from "@/lib/server/auth/sessao-servico"
 import { rotaApi } from "@/lib/server/http/rota-api"
-import { log } from "@/lib/server/log"
+import { registrarEvento } from "@/lib/server/auditoria/registrar-evento"
 
 // Público de propósito: sair sem sessão também é válido (idempotente). Escrita, então confere a origem.
 export const POST = rotaApi(
@@ -15,7 +15,17 @@ export const POST = rotaApi(
     const token = lerTokenDoRequest(request)
     const sessao = await validarSessao(token, agora)
     await encerrarSessao(token, agora)
-    if (sessao) log.info("auth.logout", { requestId, usuario: sessao.usuario })
+    if (sessao) {
+      await registrarEvento(
+        {
+          tipo: "logout",
+          requestId,
+          conta: sessao.usuario,
+          camposLog: { requestId, usuario: sessao.usuario },
+        },
+        { agora }
+      )
+    }
 
     const resposta = new NextResponse(null, { status: 204 })
     expirarCookieSessao(resposta, lerAmbiente().APP_URL)

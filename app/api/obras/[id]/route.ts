@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { obterBanco } from "@/lib/server/db/cliente"
 import { ErroApi } from "@/lib/server/http/erro-api"
 import { rotaApi } from "@/lib/server/http/rota-api"
-import { log } from "@/lib/server/log"
+import { registrarEvento } from "@/lib/server/auditoria/registrar-evento"
 import { lerEntradaDeObra } from "@/lib/server/obras/ler-entrada-obra"
 import { registrandoRecusaDeObra } from "@/lib/server/obras/log-obra"
 import { editarObra } from "@/lib/server/obras/obra-servico"
@@ -20,7 +20,7 @@ export const PUT = rotaApi(
     const idLido = idObraSchema.safeParse(id)
     const obraId = idLido.success ? idLido.data : undefined
     return registrandoRecusaDeObra(
-      { requestId, usuario, operacao: "editar", obraId },
+      { requestId, usuario, operacao: "editar", obraId, agora },
       async () => {
         const entrada = await lerEntradaDeObra(request)
         if (!obraId) throw new ErroApi("NAO_ENCONTRADO")
@@ -30,12 +30,22 @@ export const PUT = rotaApi(
           entrada,
           { autor: sessao, agora, territorio: obterDadosTerritorio() }
         )
-        log.info("obra.editada", {
-          requestId,
-          usuario,
-          obraId: obra.id,
-          situacaoAlterada,
-        })
+        await registrarEvento(
+          {
+            tipo: "obra_editada",
+            requestId,
+            conta: usuario,
+            alvo: { tipo: "obra", id: obra.id },
+            detalhes: { situacaoAlterada },
+            camposLog: {
+              requestId,
+              usuario,
+              obraId: obra.id,
+              situacaoAlterada,
+            },
+          },
+          { agora }
+        )
         return NextResponse.json(obra)
       }
     )

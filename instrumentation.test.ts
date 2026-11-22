@@ -116,6 +116,31 @@ describe("instrumentation", () => {
     })
   })
 
+  describe("register com PRE_CARREGAR_NA_SUBIDA=false (PA-05.07)", () => {
+    it("valida o ambiente mas não grava o dataset nem as obras de exemplo", async () => {
+      Object.assign(process.env, ambienteValido, {
+        PRE_CARREGAR_NA_SUBIDA: "false",
+      })
+
+      await registrarIsolado()
+
+      expect(sair).not.toHaveBeenCalled()
+      expect(garantirPreCarregadoRegistrando).not.toHaveBeenCalled()
+      expect(garantirObrasPreCarregadasRegistrando).not.toHaveBeenCalled()
+    })
+
+    it("encerra com código 1 quando o valor da variável é inválido", async () => {
+      Object.assign(process.env, ambienteValido, {
+        PRE_CARREGAR_NA_SUBIDA: "talvez",
+      })
+
+      await registrarIsolado()
+
+      expect(sair).toHaveBeenCalledWith(1)
+      expect(garantirPreCarregadoRegistrando).not.toHaveBeenCalled()
+    })
+  })
+
   describe("onRequestError", () => {
     it("registra render.erro com requestId, rota e digest", async () => {
       const erro = Object.assign(new Error("quebrou ao renderizar"), {

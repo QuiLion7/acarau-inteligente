@@ -45,6 +45,19 @@ describe("página de administração", () => {
     ).toBeVisible()
   })
 
+  it("leva à Auditoria com um link ao lado do reinício (PA-05.02)", async () => {
+    jest
+      .mocked(exigirPapelNaPagina)
+      .mockResolvedValue({ tipo: "ok", sessao: SESSAO })
+
+    render(await PaginaAdmin())
+
+    expect(screen.getByRole("link", { name: "Auditoria" })).toHaveAttribute(
+      "href",
+      "/admin/auditoria"
+    )
+  })
+
   it("mostra o estado sem permissão para quem não é administrador", async () => {
     jest
       .mocked(exigirPapelNaPagina)

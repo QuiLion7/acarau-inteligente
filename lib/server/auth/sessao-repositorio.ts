@@ -2,11 +2,14 @@ import "server-only"
 
 import { and, eq, isNull, lt } from "drizzle-orm"
 
-import { obterBanco } from "@/lib/server/db/cliente"
+import { obterBanco, type Executor } from "@/lib/server/db/cliente"
 import { sessao, type NovaSessao, type Sessao } from "@/lib/server/db/schema"
 
-export async function inserirSessao(nova: NovaSessao): Promise<void> {
-  await obterBanco().insert(sessao).values(nova)
+export async function inserirSessao(
+  nova: NovaSessao,
+  banco: Executor = obterBanco()
+): Promise<void> {
+  await banco.insert(sessao).values(nova)
 }
 
 export async function buscarSessaoPorTokenHash(
@@ -42,7 +45,8 @@ export async function encerrarSessaoPorTokenHash(
 }
 
 export async function apagarSessoesInativasAntesDe(
-  limite: Date
+  limite: Date,
+  banco: Executor = obterBanco()
 ): Promise<void> {
-  await obterBanco().delete(sessao).where(lt(sessao.ultimaAtividadeEm, limite))
+  await banco.delete(sessao).where(lt(sessao.ultimaAtividadeEm, limite))
 }

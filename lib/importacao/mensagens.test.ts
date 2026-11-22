@@ -9,7 +9,7 @@ import type { MotivoRecusa } from "@/lib/importacao/tipos-importacao"
 describe("mensagemDaRecusa", () => {
   it.each<[MotivoRecusa, number | undefined, RegExp]>([
     ["EXTENSAO_INVALIDA", undefined, /extensão \.csv/],
-    ["ARQUIVO_GRANDE_DEMAIS", undefined, /5 MB/],
+    ["ARQUIVO_GRANDE_DEMAIS", undefined, /4 MB/],
     ["ARQUIVO_NAO_TEXTO", undefined, /não é texto/],
     ["ENCODING_INVALIDO", undefined, /UTF-8/],
     ["SEM_CABECALHO", 1, /a linha 1 deveria ser o cabeçalho/],

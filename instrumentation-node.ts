@@ -1,6 +1,6 @@
 import type { Instrumentation } from "next"
 
-import { ErroAmbiente, lerAmbiente } from "@/lib/config/ambiente"
+import { ErroAmbiente, lerAmbiente, type Ambiente } from "@/lib/config/ambiente"
 import { obterBanco } from "@/lib/server/db/cliente"
 import { garantirPreCarregadoRegistrando } from "@/lib/server/demo/dataset-pre-carregado"
 import { garantirObrasPreCarregadasRegistrando } from "@/lib/server/obras/obras-pre-carregadas"
@@ -12,13 +12,16 @@ const FASE_BUILD = "phase-production-build"
 // exemplo que ainda não existem (RF-02.41, RF-04.29); uma falha da carga fica no log e não derruba a subida (R-04).
 export async function validarAmbienteNaSubida(): Promise<void> {
   if (process.env.NEXT_PHASE === FASE_BUILD) return
+  let ambiente: Ambiente
   try {
-    lerAmbiente()
+    ambiente = lerAmbiente()
   } catch (erro) {
     if (!(erro instanceof ErroAmbiente)) throw erro
     log.error("config.invalida", { variaveis: erro.variaveis })
     return process.exit(1)
   }
+  // Na Vercel a carga é do `demo:semear` no job de publicação (DEC-T-06).
+  if (!ambiente.PRE_CARREGAR_NA_SUBIDA) return
   const banco = obterBanco()
   await garantirPreCarregadoRegistrando(banco, new Date())
   await garantirObrasPreCarregadasRegistrando(banco)

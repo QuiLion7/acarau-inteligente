@@ -6,6 +6,7 @@ import { buscarConta, type ContaDemo } from "@/lib/auth/contas-demo"
 import type { SessaoValida } from "@/lib/auth/papeis"
 import { impressaoCredencial } from "@/lib/auth/senha"
 import { lerAmbiente } from "@/lib/config/ambiente"
+import type { Executor } from "@/lib/server/db/cliente"
 import {
   buscarSessaoPorTokenHash,
   encerrarSessaoPorTokenHash,
@@ -31,16 +32,20 @@ function identificar(conta: ContaDemo): SessaoValida {
 
 export async function criarSessao(
   conta: ContaDemo,
-  agora: Date
+  agora: Date,
+  banco?: Executor
 ): Promise<SessaoCriada> {
   const token = randomBytes(TAMANHO_TOKEN_BYTES).toString("base64url")
-  await inserirSessao({
-    tokenHash: hashDoToken(token),
-    usuario: conta.usuario,
-    impressaoCredencial: impressaoCredencial(conta.senhaHash),
-    criadaEm: agora,
-    ultimaAtividadeEm: agora,
-  })
+  await inserirSessao(
+    {
+      tokenHash: hashDoToken(token),
+      usuario: conta.usuario,
+      impressaoCredencial: impressaoCredencial(conta.senhaHash),
+      criadaEm: agora,
+      ultimaAtividadeEm: agora,
+    },
+    banco
+  )
   return { token, sessao: identificar(conta) }
 }
 

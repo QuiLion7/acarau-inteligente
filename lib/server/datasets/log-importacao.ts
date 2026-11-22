@@ -1,7 +1,7 @@
 import "server-only"
 
 import { ErroApi } from "@/lib/server/http/erro-api"
-import { log } from "@/lib/server/log"
+import { registrarEvento } from "@/lib/server/auditoria/registrar-evento"
 
 // Eventos de auditoria da importação (TechSpec §10, DV-09): o usuário pode aparecer; conteúdo de célula, nome de
 // arquivo, nome de coluna e cabeçalho nunca (seguranca §9, §13).
@@ -32,26 +32,39 @@ function datasetDaDuplicata(erro: ErroApi): string | undefined {
 }
 
 /** Registra recusa e duplicata; qualquer outra falha é do `rotaApi` (`http.erro`), que registra uma vez só. */
-export function registrarFalhaDeImportacao(
+export async function registrarFalhaDeImportacao(
   erro: unknown,
-  autoria: Autoria
-): void {
+  autoria: Autoria,
+  agora: Date
+): Promise<void> {
   if (!(erro instanceof ErroApi)) return
+  const { requestId, usuario } = autoria
   if (erro.code === "CONTEUDO_JA_IMPORTADO") {
-    log.info("importacao.duplicada", {
-      ...autoria,
-      datasetId: datasetDaDuplicata(erro),
-    })
+    await registrarEvento(
+      {
+        tipo: "importacao_duplicada",
+        requestId,
+        conta: usuario,
+        camposLog: { ...autoria, datasetId: datasetDaDuplicata(erro) },
+      },
+      { agora }
+    )
     return
   }
   if (
     erro.code === "IMPORTACAO_INVALIDA" ||
     erro.code === "ARQUIVO_GRANDE_DEMAIS"
   ) {
-    log.warn("importacao.recusada", {
-      ...autoria,
-      codigo: codigoDaRecusa(erro),
-      linha: linhaDaRecusa(erro),
-    })
+    const codigo = codigoDaRecusa(erro)
+    await registrarEvento(
+      {
+        tipo: "importacao_recusada",
+        requestId,
+        conta: usuario,
+        detalhes: { codigo },
+        camposLog: { ...autoria, codigo, linha: linhaDaRecusa(erro) },
+      },
+      { agora }
+    )
   }
 }

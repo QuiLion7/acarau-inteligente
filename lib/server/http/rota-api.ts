@@ -18,6 +18,7 @@ import { validarSessao } from "@/lib/server/auth/sessao-servico"
 import { origemPermitida } from "@/lib/server/http/origem"
 import { obterRequestId } from "@/lib/server/http/request-id"
 import { log } from "@/lib/server/log"
+import { registrarEvento } from "@/lib/server/auditoria/registrar-evento"
 
 // Segmentos dinâmicos da rota (`[hash]`, `[id]`): o Next 16 entrega `params` como Promise no 2º argumento do handler.
 export type ParametrosDaRota = Record<string, string | string[] | undefined>
@@ -37,9 +38,11 @@ export type ManipuladorRota = (
   contexto: ContextoRota
 ) => Promise<Response>
 
-// Dependências injetáveis: o relógio, a origem aceita e a leitura da sessão a partir do cookie do request.
+// Dependências injetáveis: o relógio, a origem aceita, a leitura da sessão a partir do cookie do request e o registro
+// da auditoria (acesso negado, RF-05.24).
 export type DependenciasRota = {
   agora: () => Date
+  registrarEvento: typeof registrarEvento
   appUrl: () => string
   obterSessao: (
     request: NextRequest,
@@ -55,22 +58,30 @@ const obterSessaoDoRequest: DependenciasRota["obterSessao"] = (
 
 const dependenciasPadrao: DependenciasRota = {
   agora: () => new Date(),
+  registrarEvento,
   appUrl: () => lerAmbiente().APP_URL,
   obterSessao: obterSessaoDoRequest,
 }
 
-function recusarAcesso(
+async function recusarAcesso(
   motivo: "nao-autenticado" | "sem-permissao",
   request: NextRequest,
-  requestId: string,
-  sessao: SessaoValida | null
-): never {
-  log.warn("auth.acesso_negado", {
-    requestId,
-    rota: request.nextUrl.pathname,
-    motivo,
-    usuario: sessao?.usuario,
-  })
+  contexto: Pick<ContextoRota, "requestId" | "agora">,
+  sessao: SessaoValida | null,
+  dependencias: DependenciasRota
+): Promise<never> {
+  const { requestId, agora } = contexto
+  const rota = request.nextUrl.pathname
+  await dependencias.registrarEvento(
+    {
+      tipo: "acesso_negado",
+      requestId,
+      conta: sessao?.usuario ?? null,
+      detalhes: { rota, motivo },
+      camposLog: { requestId, rota, motivo, usuario: sessao?.usuario },
+    },
+    { agora }
+  )
   throw new ErroApi(
     motivo === "nao-autenticado" ? "NAO_AUTENTICADO" : "SEM_PERMISSAO"
   )
@@ -84,10 +95,22 @@ async function exigirSessao(
 ): Promise<SessaoValida> {
   const sessao = await dependencias.obterSessao(request, contexto.agora)
   if (!sessao) {
-    return recusarAcesso("nao-autenticado", request, contexto.requestId, null)
+    return recusarAcesso(
+      "nao-autenticado",
+      request,
+      contexto,
+      null,
+      dependencias
+    )
   }
   if (!temPapel(sessao.papel, papelMinimo)) {
-    return recusarAcesso("sem-permissao", request, contexto.requestId, sessao)
+    return recusarAcesso(
+      "sem-permissao",
+      request,
+      contexto,
+      sessao,
+      dependencias
+    )
   }
   return sessao
 }
