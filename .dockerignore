@@ -8,6 +8,7 @@ coverage
 dados
 !dados/gerados
 !dados/sinteticos/saude-pre-carregado_DEMO.csv
+!dados/sinteticos/obras-pre-carregadas_DEMO.json
 docs
 sdd
 .claude

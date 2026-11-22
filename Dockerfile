@@ -37,6 +37,7 @@ COPY --chown=node:node scripts/migrar.mjs ./scripts/migrar.mjs
 COPY --chown=node:node db/migracoes ./db/migracoes
 # Dataset de exemplo que o servidor grava na subida (RF-02.41); o caminho parte de /app (PR-13).
 COPY --chown=node:node dados/sinteticos/saude-pre-carregado_DEMO.csv ./dados/sinteticos/saude-pre-carregado_DEMO.csv
+COPY --chown=node:node dados/sinteticos/obras-pre-carregadas_DEMO.json ./dados/sinteticos/obras-pre-carregadas_DEMO.json
 COPY --chown=node:node --chmod=755 docker/entrypoint.sh ./docker/entrypoint.sh
 USER node
 EXPOSE 3000
