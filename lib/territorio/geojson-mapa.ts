@@ -1,6 +1,8 @@
 // Montagem dos dados do mapa: enquadramento e GeoJSON dos bairros e das escolas (TechSpec EP-03 §2, DV-33).
 import type { Bairro, Escola } from "@/lib/territorio/artefato-schema"
 import type { DadosCoropletico } from "@/lib/territorio/estilo-mapa"
+import type { SituacaoObra } from "@/lib/obras/situacao-obra"
+import type { Obra, PontoObra } from "@/lib/validations/obra-schema"
 
 export type Enquadramento = [
   [oeste: number, sul: number],
@@ -66,4 +68,68 @@ export function escolasParaGeoJson(escolas: readonly Escola[]) {
           ]
     ),
   }
+}
+
+/** O que o mapa sabe de uma obra: só as com ponto, sem o resto do cadastro (react-next.md §2). */
+export type ObraNoMapa = {
+  id: string
+  titulo: string
+  situacao: SituacaoObra
+  longitude: number
+  latitude: number
+}
+
+/** Obra sem ponto não vai ao mapa e nunca ganha marcador (RN-04.02): é a única que fica de fora desta lista. */
+export function obrasNoMapa(obras: readonly Obra[]): ObraNoMapa[] {
+  return obras.flatMap(({ id, titulo, situacao, localizacao }) =>
+    localizacao ? [{ id, titulo, situacao, ...localizacao }] : []
+  )
+}
+
+/** Um ponto por obra da lista; o título vai como propriedade de texto, nunca como HTML (RNF-04.04). */
+export function obrasParaGeoJson(obras: readonly ObraNoMapa[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: obras.map(({ id, titulo, situacao, longitude, latitude }) => ({
+      type: "Feature" as const,
+      properties: { id, titulo, situacao },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [longitude, latitude],
+      },
+    })),
+  }
+}
+
+/** O ponto escolhido no formulário (RF-04.16): nenhuma feature quando ainda não há ponto. */
+export function pontoProvisorioParaGeoJson(ponto: PontoObra | null) {
+  return {
+    type: "FeatureCollection" as const,
+    features: ponto
+      ? [
+          {
+            type: "Feature" as const,
+            properties: {},
+            geometry: {
+              type: "Point" as const,
+              coordinates: [ponto.longitude, ponto.latitude],
+            },
+          },
+        ]
+      : [],
+  }
+}
+
+/** Marcadores desenhados por situação, para a legenda: só conta quem está na lista do mapa (tem ponto). */
+export function contarMarcadoresDeObras(
+  obras: readonly Pick<ObraNoMapa, "situacao">[]
+): Record<SituacaoObra, number> {
+  const contagem: Record<SituacaoObra, number> = {
+    planejada: 0,
+    em_andamento: 0,
+    concluida: 0,
+    suspensa: 0,
+  }
+  for (const { situacao } of obras) contagem[situacao] += 1
+  return contagem
 }

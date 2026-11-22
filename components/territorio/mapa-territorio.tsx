@@ -15,8 +15,10 @@ import { AvisoMapaBase } from "@/components/territorio/aviso-mapa-base"
 import {
   aoCarregarMapa,
   marcarEstado,
+  registrarCliqueLivre,
   registrarEventosDeBairro,
   registrarEventosDeEscola,
+  registrarEventosDeObra,
   registrarEventosDoCoropletico,
   registrarEventosDoFundo,
 } from "@/components/territorio/eventos-mapa"
@@ -27,8 +29,10 @@ import type {
   LimiteMunicipal,
 } from "@/lib/territorio/artefato-schema"
 import {
+  CAMADAS_MAPA,
   type DadosCoropletico,
   type DadosDoMapa,
+  filtroDaObraSelecionada,
   FONTES_MAPA,
   type IdCamadaControlavel,
   montarEstilo,
@@ -37,7 +41,11 @@ import {
 import {
   bairrosParaGeoJson,
   calcularEnquadramento,
+  type ObraNoMapa,
+  obrasParaGeoJson,
+  pontoProvisorioParaGeoJson,
 } from "@/lib/territorio/geojson-mapa"
+import type { PontoObra } from "@/lib/validations/obra-schema"
 
 // Turbopack só emite o worker do MapLibre como asset se a URL vier de `new URL(..., import.meta.url)` (docs do
 // MapLibre, "Installation > Turbopack"); sem isto o worker não carrega e o mapa fica em branco.
@@ -103,6 +111,21 @@ type MapaTerritorioProps = {
    * exatamente o do Território.
    */
   coropletico?: DadosCoropletico
+  /**
+   * Obras com ponto (EP-04). Presente desde a montagem, o mapa leva as fontes e as camadas de obra e cada troca só
+   * atualiza os dados (`setData`/`setFilter`), sem recriar o mapa; passe uma referência estável. Ausente, o mapa é
+   * exatamente o dos outros módulos (PA-04.07).
+   */
+  obras?: ObraNoMapa[]
+  obraSelecionadaId?: string | null
+  onAbrirObra?: (obraId: string) => void
+  /** Ponto escolhido no formulário de obra, desenhado como marcador provisório. */
+  pontoProvisorio?: PontoObra | null
+  /**
+   * Definido = modo "escolher ponto": o clique no mapa devolve a coordenada, e o clique em bairro e em obra deixa de
+   * agir (RF-04.16). Indefinido = o clique em bairro e em obra funciona e o clique livre não faz nada.
+   */
+  onEscolherPonto?: (ponto: PontoObra) => void
   /** Nome acessível da região do mapa, quando o padrão do modo não descreve o uso. */
   rotulo?: string
 }
@@ -119,6 +142,11 @@ export function MapaTerritorio({
   camadasLigadas = CAMADAS_DO_RESUMO,
   onAbrirEscola,
   coropletico,
+  obras,
+  obraSelecionadaId = null,
+  onAbrirObra,
+  pontoProvisorio = null,
+  onEscolherPonto,
   rotulo,
 }: MapaTerritorioProps) {
   const recipienteRef = useRef<HTMLDivElement>(null)
@@ -146,9 +174,19 @@ export function MapaTerritorio({
     marcarEstado(mapa, selecionadoId, { selecionado: true })
     selecionadoAplicadoRef.current = selecionadoId
   })
-  const selecionar = useEffectEvent(onSelecionar)
+  const escolhendoPonto = useEffectEvent(() => onEscolherPonto !== undefined)
+  // No modo "escolher ponto" o clique em bairro e em obra não age: o clique é só do ponto.
+  const selecionar = useEffectEvent((idBairro: string) => {
+    if (!escolhendoPonto()) onSelecionar(idBairro)
+  })
   const abrirEscola = useEffectEvent((codigoInep: string) =>
     onAbrirEscola?.(codigoInep)
+  )
+  const abrirObra = useEffectEvent((obraId: string) => {
+    if (!escolhendoPonto()) onAbrirObra?.(obraId)
+  })
+  const escolherPonto = useEffectEvent((ponto: PontoObra) =>
+    onEscolherPonto?.(ponto)
   )
   // Os dados são fixos na vida da tela, mas cada `router.replace` traz objetos novos do servidor: ler pelo Effect
   // Event evita recriar o mapa (e perder o enquadramento) a cada seleção.
@@ -157,6 +195,9 @@ export function MapaTerritorio({
     limite,
     escolas,
     coropletico,
+    obras,
+    obraSelecionadaId,
+    pontoProvisorio,
   }))
   const aplicarCoropletico = useEffectEvent(async (mapa: MapaMapLibre) => {
     const fonte = mapa.getSource<GeoJSONSource>(FONTES_MAPA.bairros)
@@ -164,6 +205,24 @@ export function MapaTerritorio({
     await fonte.setData(bairrosParaGeoJson(dadosDoMapa().bairros, coropletico))
     // O destaque do bairro selecionado é estado do mapa: reaplicado depois de os dados serem trocados.
     aplicarSelecao(mapa)
+  })
+
+  const aplicarObras = useEffectEvent(async (mapa: MapaMapLibre) => {
+    const fonte = mapa.getSource<GeoJSONSource>(FONTES_MAPA.obras)
+    if (!obras || !fonte) return
+    await fonte.setData(obrasParaGeoJson(obras))
+  })
+  const aplicarObraSelecionada = useEffectEvent((mapa: MapaMapLibre) => {
+    if (!mapa.getLayer(CAMADAS_MAPA.obrasSelecionada)) return
+    mapa.setFilter(
+      CAMADAS_MAPA.obrasSelecionada,
+      filtroDaObraSelecionada(obraSelecionadaId)
+    )
+  })
+  const aplicarPontoProvisorio = useEffectEvent(async (mapa: MapaMapLibre) => {
+    const fonte = mapa.getSource<GeoJSONSource>(FONTES_MAPA.obraProvisoria)
+    if (!fonte) return
+    await fonte.setData(pontoProvisorioParaGeoJson(pontoProvisorio))
   })
 
   useEffect(() => {
@@ -190,12 +249,22 @@ export function MapaTerritorio({
       aoAbrir: (codigoInep) => abrirEscola(codigoInep),
     })
     if (dados.coropletico) registrarEventosDoCoropletico(mapa)
+    if (dados.obras) {
+      registrarEventosDeObra(mapa, { aoAbrir: (obraId) => abrirObra(obraId) })
+      registrarCliqueLivre(mapa, {
+        aoEscolher: (ponto) => escolherPonto(ponto),
+      })
+    }
     aoCarregarMapa(mapa, recipiente, () => {
       prontoRef.current = true
       aplicarCamadas(mapa)
       aplicarSelecao(mapa)
       // Os dados do estilo são os da montagem: se o período mudou antes do `load`, a troca é aplicada agora.
       void aplicarCoropletico(mapa)
+      // Idem para as obras: o que mudou entre a montagem e o `load` entra agora.
+      void aplicarObras(mapa)
+      aplicarObraSelecionada(mapa)
+      void aplicarPontoProvisorio(mapa)
     })
 
     return () => {
@@ -222,6 +291,21 @@ export function MapaTerritorio({
     const mapa = mapaRef.current
     if (mapa && prontoRef.current) void aplicarCoropletico(mapa)
   }, [coropletico])
+
+  useEffect(() => {
+    const mapa = mapaRef.current
+    if (mapa && prontoRef.current) void aplicarObras(mapa)
+  }, [obras])
+
+  useEffect(() => {
+    const mapa = mapaRef.current
+    if (mapa && prontoRef.current) aplicarObraSelecionada(mapa)
+  }, [obraSelecionadaId])
+
+  useEffect(() => {
+    const mapa = mapaRef.current
+    if (mapa && prontoRef.current) void aplicarPontoProvisorio(mapa)
+  }, [pontoProvisorio])
 
   if (teveErro) {
     return (

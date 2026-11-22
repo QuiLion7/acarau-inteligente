@@ -1,6 +1,14 @@
 import { obterDadosTerritorio } from "@/lib/server/territorio/territorio-repositorio"
 
-import { bairrosParaGeoJson, calcularEnquadramento } from "./geojson-mapa"
+import { montarObra } from "@/lib/obras/__fixtures__/obra"
+
+import {
+  bairrosParaGeoJson,
+  calcularEnquadramento,
+  obrasNoMapa,
+  obrasParaGeoJson,
+  pontoProvisorioParaGeoJson,
+} from "./geojson-mapa"
 
 const { bairros } = obterDadosTerritorio()
 
@@ -45,5 +53,71 @@ describe("bairrosParaGeoJson", () => {
       properties: { id: "uv-10", situacao: "valor", classe: 3 },
       geometry: bairros[9]?.geometria,
     })
+  })
+})
+
+describe("obras no mapa (TU-07, CA-04.02, RN-04.02)", () => {
+  const COM_PONTO = { longitude: -40.118958, latitude: -2.885116 }
+  const obras = [
+    montarObra({ id: "a", localizacao: COM_PONTO, situacao: "em_andamento" }),
+    montarObra({ id: "b", localizacao: null }),
+    montarObra({
+      id: "c",
+      localizacao: { longitude: -40.14, latitude: -2.88 },
+    }),
+  ]
+
+  it("obra sem ponto fica fora do mapa: marcadores = total menos as sem localização", () => {
+    const noMapa = obrasNoMapa(obras)
+
+    expect(noMapa.map(({ id }) => id)).toEqual(["a", "c"])
+    expect(obrasParaGeoJson(noMapa).features).toHaveLength(obras.length - 1)
+  })
+
+  it("o mapa recebe só o que precisa: id, título, situação e ponto", () => {
+    expect(obrasNoMapa(obras)[0]).toEqual({
+      id: "a",
+      titulo: "DEMO - Obra de teste",
+      situacao: "em_andamento",
+      ...COM_PONTO,
+    })
+  })
+
+  it("monta um ponto por obra, com longitude antes da latitude, e o título como propriedade de texto", () => {
+    const { features } = obrasParaGeoJson([
+      {
+        id: "a",
+        titulo: "<b>x</b>",
+        situacao: "suspensa",
+        ...COM_PONTO,
+      },
+    ])
+
+    expect(features).toEqual([
+      {
+        type: "Feature",
+        properties: { id: "a", titulo: "<b>x</b>", situacao: "suspensa" },
+        geometry: { type: "Point", coordinates: [-40.118958, -2.885116] },
+      },
+    ])
+  })
+
+  it("lista vazia dá uma coleção sem features", () => {
+    expect(obrasParaGeoJson([]).features).toEqual([])
+  })
+})
+
+describe("pontoProvisorioParaGeoJson", () => {
+  it("desenha o ponto escolhido e, sem ponto, nenhuma feature", () => {
+    expect(
+      pontoProvisorioParaGeoJson({ longitude: -40.1, latitude: -2.9 }).features
+    ).toEqual([
+      {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Point", coordinates: [-40.1, -2.9] },
+      },
+    ])
+    expect(pontoProvisorioParaGeoJson(null).features).toEqual([])
   })
 })

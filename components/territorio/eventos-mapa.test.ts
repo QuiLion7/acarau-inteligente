@@ -6,12 +6,18 @@ import type { Map as MapaMapLibre } from "maplibre-gl"
 import {
   aoCarregarMapa,
   MARCA_MAPA_INTERATIVO,
+  registrarCliqueLivre,
   registrarEventosDeBairro,
   registrarEventosDeEscola,
+  registrarEventosDeObra,
   registrarEventosDoCoropletico,
   registrarEventosDoFundo,
 } from "@/components/territorio/eventos-mapa"
-import { CAMADAS_MAPA, FONTES_MAPA } from "@/lib/territorio/estilo-mapa"
+import {
+  CAMADAS_MAPA,
+  FONTES_MAPA,
+  ICONES_OBRA,
+} from "@/lib/territorio/estilo-mapa"
 
 type Ouvinte = (evento: unknown) => void
 
@@ -21,6 +27,8 @@ function criarMapaDouble() {
   const canvas = { style: { cursor: "" } }
   const setFeatureState = jest.fn()
   const queryRenderedFeatures = jest.fn(() => [])
+  // Por padrão o estilo tem as camadas de escola e de obra; o teste troca quando quer um estilo sem elas.
+  const getLayer = jest.fn((): object | undefined => ({}))
   const addImage = jest.fn()
   const chave = (evento: string, camada?: string) =>
     camada ? `${evento}:${camada}` : evento
@@ -37,6 +45,7 @@ function criarMapaDouble() {
     getCanvas: () => canvas,
     setFeatureState,
     queryRenderedFeatures,
+    getLayer,
     addImage,
   }
 
@@ -46,6 +55,7 @@ function criarMapaDouble() {
     canvas,
     setFeatureState,
     queryRenderedFeatures,
+    getLayer,
     addImage,
     disparar: (evento: string, dados?: unknown, camada?: string) => {
       const ouvinte = ouvintes.get(chave(evento, camada))
@@ -160,6 +170,54 @@ describe("registrarEventosDeBairro", () => {
   })
 })
 
+describe("registrarEventosDeBairro com camadas de marcador (RF-04.03)", () => {
+  const camada = CAMADAS_MAPA.bairrosPreenchimento
+
+  it("clicar num marcador de obra sobre o bairro não seleciona o bairro", () => {
+    const { mapa, disparar, queryRenderedFeatures } = criarMapaDouble()
+    queryRenderedFeatures.mockReturnValue([{ properties: {} }] as never)
+    const aoSelecionar = jest.fn()
+    registrarEventosDeBairro(mapa, { aoSelecionar })
+
+    disparar("click", noBairro("uv-10"), camada)
+
+    expect(aoSelecionar).not.toHaveBeenCalled()
+    expect(queryRenderedFeatures).toHaveBeenCalledWith(
+      { x: 1, y: 2 },
+      { layers: [CAMADAS_MAPA.escolas, CAMADAS_MAPA.obras] }
+    )
+  })
+
+  it("só consulta as camadas de marcador que o estilo tem: sem elas o clique seleciona o bairro e nada é consultado", () => {
+    const { mapa, disparar, queryRenderedFeatures, getLayer } =
+      criarMapaDouble()
+    getLayer.mockReturnValue(undefined)
+    const aoSelecionar = jest.fn()
+    registrarEventosDeBairro(mapa, { aoSelecionar })
+
+    disparar("click", noBairro("uv-10"), camada)
+
+    expect(queryRenderedFeatures).not.toHaveBeenCalled()
+    expect(aoSelecionar).toHaveBeenCalledWith("uv-10")
+  })
+
+  it("com só a camada de obras no estilo, consulta só ela", () => {
+    const { mapa, disparar, queryRenderedFeatures, getLayer } =
+      criarMapaDouble()
+    getLayer.mockImplementation((camadaDoEstilo?: unknown) =>
+      camadaDoEstilo === CAMADAS_MAPA.obras ? {} : undefined
+    )
+    registrarEventosDeBairro(mapa, { aoSelecionar: jest.fn() })
+
+    disparar("click", noBairro("uv-10"), camada)
+
+    expect(queryRenderedFeatures).toHaveBeenCalledWith(
+      { x: 1, y: 2 },
+      { layers: [CAMADAS_MAPA.obras] }
+    )
+  })
+})
+
 describe("registrarEventosDeEscola", () => {
   it("clicar na escola abre pelo código INEP", () => {
     const { mapa, disparar } = criarMapaDouble()
@@ -240,5 +298,70 @@ describe("registrarEventosDoCoropletico (DEC-T-07)", () => {
       "hachura-sem-dados",
       expect.objectContaining({ width: 8, height: 8 })
     )
+  })
+})
+
+describe("registrarEventosDeObra (RF-04.03, CA-04.27)", () => {
+  const camada = CAMADAS_MAPA.obras
+
+  it("registra uma imagem por situação quando o estilo carrega", () => {
+    const { mapa, disparar, addImage } = criarMapaDouble()
+    registrarEventosDeObra(mapa, { aoAbrir: jest.fn() })
+
+    disparar("style.load")
+
+    expect(addImage.mock.calls.map(([nome]) => nome).toSorted()).toEqual(
+      Object.values(ICONES_OBRA)
+        .map(({ imagem }) => imagem)
+        .toSorted()
+    )
+  })
+
+  it("clicar no marcador abre a obra pelo id", () => {
+    const { mapa, disparar } = criarMapaDouble()
+    const aoAbrir = jest.fn()
+    registrarEventosDeObra(mapa, { aoAbrir })
+
+    disparar("click", { features: [{ properties: { id: "obra-1" } }] }, camada)
+
+    expect(aoAbrir).toHaveBeenCalledTimes(1)
+    expect(aoAbrir).toHaveBeenCalledWith("obra-1")
+  })
+
+  it("clique sem feature identificável não abre nada", () => {
+    const { mapa, disparar } = criarMapaDouble()
+    const aoAbrir = jest.fn()
+    registrarEventosDeObra(mapa, { aoAbrir })
+
+    disparar("click", { features: [] }, camada)
+
+    expect(aoAbrir).not.toHaveBeenCalled()
+  })
+
+  it("o cursor vira ponteiro sobre o marcador e volta ao sair", () => {
+    const { mapa, disparar, canvas } = criarMapaDouble()
+    registrarEventosDeObra(mapa, { aoAbrir: jest.fn() })
+
+    disparar("mouseenter", undefined, camada)
+    expect(canvas.style.cursor).toBe("pointer")
+    disparar("mouseleave", undefined, camada)
+
+    expect(canvas.style.cursor).toBe("")
+  })
+})
+
+describe("registrarCliqueLivre (RF-04.16)", () => {
+  it("devolve a coordenada do clique, com longitude e latitude", () => {
+    const { mapa, disparar } = criarMapaDouble()
+    const aoEscolher = jest.fn()
+    registrarCliqueLivre(mapa, { aoEscolher })
+
+    disparar("click", { lngLat: { lng: -40.118958, lat: -2.885116 } })
+
+    expect(aoEscolher).toHaveBeenCalledTimes(1)
+    expect(aoEscolher).toHaveBeenCalledWith({
+      longitude: -40.118958,
+      latitude: -2.885116,
+    })
   })
 })
