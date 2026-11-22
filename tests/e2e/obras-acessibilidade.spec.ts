@@ -1,16 +1,9 @@
-import AxeBuilder from "@axe-core/playwright"
 import type { Page } from "@playwright/test"
 
+import { violacoesGraves } from "./acessibilidade-helpers"
 import { ANALISTA, entrarPelaApi, reiniciarDemo } from "./acesso-helpers"
 import { expect, test } from "./fixtures"
 import { aguardarMapaPronto } from "./mapa-helpers"
-
-async function violacoesGraves(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).analyze()
-  return violations.filter(
-    ({ impact }) => impact === "serious" || impact === "critical"
-  )
-}
 
 const mapaDeObras = (page: Page) =>
   page.locator(

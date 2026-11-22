@@ -1,5 +1,7 @@
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { baixarBlob } from "@/lib/exportacao/baixar-arquivo"
+import { linhasDoCsvBaixado } from "@/test/csv-teste"
 
 import { TabelaObras } from "@/components/obras/tabela-obras"
 import { montarObra } from "@/lib/obras/__fixtures__/obra"
@@ -169,5 +171,52 @@ describe("TabelaObras (RF-04.04, CA-04.01)", () => {
     expect(
       screen.getByRole("region", { name: "Lista de obras" })
     ).toHaveAttribute("tabindex", "0")
+  })
+})
+
+jest.mock("@/lib/exportacao/baixar-arquivo", () => ({ baixarBlob: jest.fn() }))
+
+describe("TabelaObras: Exportar CSV (RF-05.18, CA-05.11, CA-05.12)", () => {
+  beforeEach(() => jest.mocked(baixarBlob).mockClear())
+
+  it("exporta exatamente as obras recebidas (o filtro da tela), com SINTETICO e a fórmula neutralizada", async () => {
+    const usuario = userEvent.setup()
+    const obras = [
+      montarObra({
+        id: "x",
+        titulo: "=1+1",
+        estadoLocalizacao: "dentro-de-bairro",
+        bairroId: "uv-10",
+      }),
+      montarObra({ id: "y", titulo: "@SOMA(A1)" }),
+    ]
+    render(
+      <TabelaObras
+        obras={obras}
+        bairros={BAIRROS}
+        obraSelecionadaId={null}
+        onAbrirObra={jest.fn()}
+        bairroNome="Centro"
+      />
+    )
+
+    await usuario.click(
+      screen.getByRole("button", { name: "Exportar CSV: lista de obras" })
+    )
+
+    const [blob, nome] = jest.mocked(baixarBlob).mock.calls[0]
+    expect(nome).toMatch(
+      /^acarau-inteligente_obras_\d{4}-\d{2}-\d{2}_centro\.csv$/
+    )
+    const linhas = await linhasDoCsvBaixado(blob)
+    expect(linhas).toHaveLength(3)
+    expect(linhas[0]).toContain("Proveniência")
+    expect(linhas[1].startsWith("'=1+1;")).toBe(true)
+    expect(linhas[1]).toContain(";Centro;")
+    expect(linhas[2].startsWith("'@SOMA(A1);")).toBe(true)
+    expect(linhas[2]).toContain(";Sem localização;")
+    expect(linhas.slice(1).every((linha) => linha.endsWith(";SINTETICO"))).toBe(
+      true
+    )
   })
 })

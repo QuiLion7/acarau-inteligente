@@ -63,6 +63,16 @@ function renderizar(parametros = "") {
 
 beforeEach(() => jest.clearAllMocks())
 
+describe("PainelEducacao: Exportar relatório (CA-05.02)", () => {
+  it("leva o bairro da URL ao relatório e não carrega parâmetros de outra tela", () => {
+    renderizar("bairro=uv-10&periodo=2025&q=escola")
+
+    expect(
+      screen.getByRole("link", { name: "Exportar relatório" })
+    ).toHaveAttribute("href", "/relatorios?bairro=uv-10&periodo=2025")
+  })
+})
+
 describe("PainelEducacao: a base inteira (CA-03.16, CA-03.17)", () => {
   it("monta seletor, cinco cards, mapa com as três camadas fixas e legenda, tabela por bairro e lista", () => {
     renderizar()
@@ -96,11 +106,21 @@ describe("PainelEducacao: a base inteira (CA-03.16, CA-03.17)", () => {
 
     expect(screen.queryByRole("switch")).toBeNull()
     expect(screen.queryByRole("link", { name: /importar/i })).toBeNull()
+    // Exportar CSV (EP-05, RF-05.18) só lê a tabela: não é escrita, então "exportar" saiu da lista; os outros verbos
+    // de escrita continuam proibidos, e as únicas exportações são os dois CSV das tabelas.
     for (const botao of screen.getAllByRole("button")) {
       expect(botao).not.toHaveAccessibleName(
-        /importar|publicar|despublicar|reiniciar|exportar|excluir|salvar|apagar/i
+        /importar|publicar|despublicar|reiniciar|excluir|salvar|apagar/i
       )
     }
+    expect(
+      screen
+        .getAllByRole("button", { name: /exportar/i })
+        .map((botao) => botao.getAttribute("aria-label"))
+    ).toEqual([
+      "Exportar CSV: escolas por bairro",
+      "Exportar CSV: lista de escolas",
+    ])
   })
 })
 
@@ -262,5 +282,15 @@ describe("PainelEducacao: ficha de escola sem localização (TU-25, CA-03.23, RN
     ).toBeVisible()
     expect(ficha.textContent).not.toMatch(/-?\d{1,3}\.\d{4,}/)
     expect(semLocalizacao.posicao).toBeNull()
+  })
+})
+
+describe("PainelEducacao: Baixar mapa (PNG) (RF-05.22, PA-05.10)", () => {
+  it("oferece o botão, desabilitado enquanto o mapa não entrega a instância", () => {
+    renderizar()
+
+    expect(
+      screen.getByRole("button", { name: "Baixar mapa (PNG)" })
+    ).toBeDisabled()
   })
 })

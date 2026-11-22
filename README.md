@@ -19,7 +19,7 @@ Aplicação web de demonstração que transforma dados territoriais e setoriais 
 | EP-02 Importação CSV e motor analítico | Implementado (`sdd/ep-02-importacao-analises/tasks.md`): importação de CSV por assistente, datasets versionados e publicáveis, Saúde com coroplético, ranking, tabela e gráfico por período, dataset pré-carregado, reset e datasets em "Fontes e limitações"; falta a revisão e o roteiro manual de `sdd/ep-02-importacao-analises/qa-report.md` |
 | EP-03 Saúde e Educação | Implementado (`sdd/ep-03-saude-educacao/tasks.md`): Saúde com cards e variação, seletor de bairro, abas Mapa e Tabela e metodologia; página Educação com cards, mapa, tabela por bairro, lista com busca, ficha e pendências; mapa dividido em módulos por conceito; falta a revisão e o roteiro manual de `sdd/ep-03-saude-educacao/qa-report.md` |
 | EP-04 Obras | Implementado (`sdd/ep-04-obras/tasks.md`): página Obras com resumo, filtros por situação e bairro, mapa, lista, ficha com histórico e metodologia; cadastro e edição pelo analista com o ponto no mapa ou por coordenadas; 8 obras de exemplo, reset estendido, atalho na Área do analista e obras em "Fontes e limitações"; falta a revisão e o roteiro manual de `sdd/ep-04-obras/qa-report.md` |
-| EP-05 | Não iniciado |
+| EP-05 Relatório, exportações, auditoria e publicação | Em andamento (`sdd/ep-05-relatorios-deploy/tasks.md`) |
 
 ## Pré-requisitos
 
@@ -56,6 +56,7 @@ docker compose up --build
 | `npm run verificar` | Gate único: prepara os bancos de teste e roda `lint`, `typecheck`, `test:ci`, `build` e `test:e2e`; para na primeira falha e diz a etapa |
 | `npm run dados:territorio` | Gera `dados/gerados/territorio.json` e `camadas.json` a partir dos insumos de `dados/`; falha inteira (nada é gravado) se qualquer regra da base for violada |
 | `npm run dados:territorio -- --conferir` | Regenera em memória e sai com erro se o resultado diferir do versionado; é a primeira etapa do `npm run verificar` |
+| `npm run demo:semear` | Grava o dataset e as 8 obras de exemplo que ainda não existem (idempotente; sai com 1 se falhar). Usado pelo job `publicar`; usa o `DATABASE_URL` do ambiente |
 | `npm run db:preparar-teste` | Sobe o `db` do compose e cria/migra `acarau_teste` e `acarau_e2e` |
 | `npm run db:gerar` / `npm run db:migrar` | Gera a migração a partir do schema / aplica as migrações |
 | `npm run senha:hash` | Gera o hash de senha de uma conta de demo |
@@ -81,7 +82,7 @@ O Playwright sobe o próprio servidor (porta 3100) com contas de teste cujas sen
 - Não é sistema oficial da Prefeitura de Acaraú; usa dados agregados e sintéticos, sempre com a procedência indicada.
 - Duas contas fixas (analista e administrador), sem cadastro nem recuperação de senha.
 - Sem conexão com bancos institucionais de saúde ou de obras.
-- Banco e aplicação rodam localmente; não há ambiente publicado nesta fase.
+- Banco e aplicação rodam localmente com o Docker; o ambiente publicado (Vercel + Neon, plano gratuito) segue a seção "Publicação".
 
 ## Território e escolas (EP-01)
 
@@ -96,7 +97,7 @@ O Território lê dois artefatos **versionados** em `dados/gerados/` (`territori
 
 O analista (ou o administrador) importa contagens de saúde por bairro e período em **Saúde > Importar CSV** (`/saude/importar`). O assistente lê e valida o arquivo **no navegador** a cada passo (separador, colunas, bairros, validação) com o mesmo motor que o servidor roda de novo ao confirmar; nada é gravado antes da confirmação e cancelar só descarta o estado da tela.
 
-- **Regras do arquivo:** `.csv` em UTF-8, até 5 MB e 10.000 linhas, com vírgula ou ponto e vírgula; só contagens agregadas (cabeçalho ou célula com cara de dado pessoal, como `nome_paciente` ou um CPF, recusam o arquivo). O mesmo conteúdo nunca é importado duas vezes (SHA-256 dos bytes).
+- **Regras do arquivo:** `.csv` em UTF-8, até 4 MB e 10.000 linhas, com vírgula ou ponto e vírgula; só contagens agregadas (cabeçalho ou célula com cara de dado pessoal, como `nome_paciente` ou um CPF, recusam o arquivo). O mesmo conteúdo nunca é importado duas vezes (SHA-256 dos bytes).
 - **Versões:** um dataset novo ou uma nova versão de um existente nasce **privada**; **Publicar** é ação explícita (`/saude/datasets`), e publicar uma versão despublica a outra do mesmo dataset. O visitante só vê o publicado.
 - **Saúde:** quatro cards no topo (total com variação contra o período anterior, bairros com dados, sem dados e fora da cobertura), seletor de bairro com busca, abas Mapa (coroplético por quantis, até 5 classes, e legenda) e Tabela (os 24 bairros), ranking, gráfico por período e a seção recolhível "Como os números são calculados". Taxa não é calculada (a demonstração não tem população por bairro); a explicação fica na metodologia.
 - **Dados de exemplo (`dados/sinteticos/`):** `saude-roteiro_DEMO.csv` (roteiro de importação, com um bairro ambíguo e outro não reconhecido), `adversos/` (um arquivo ruim por motivo de recusa) e `saude-pre-carregado_DEMO.csv`. O `LEIA-ME.txt` da pasta explica cada um.
@@ -119,6 +120,62 @@ O analista (ou o administrador) importa contagens de saúde por bairro e períod
 - **Obras de exemplo:** `dados/sinteticos/obras-pre-carregadas_DEMO.json` (8 obras com histórico e datas fixas) é gravado na subida e no reset, na mesma transação dos datasets. A imagem do Docker copia esse JSON. O `obras_DEMO.csv` da pasta `dados/` não é usado.
 - **Atalho:** a Área do analista leva a `/obras?nova=1`, que abre o formulário (só para quem pode editar).
 - **Testes que gravam obras:** todo spec que cria ou edita obra começa com `reiniciarDemo()`; `inserirObras(n)` (`tests/e2e/banco-e2e.ts`) monta o caso de 200 obras.
+
+## Publicação
+
+A demonstração publicada roda na **Vercel (plano Hobby)** com **Postgres do Neon (nível gratuito, região São Paulo)**. Quem publica é o **GitHub Actions** (`.github/workflows/verificar-e-publicar.yml`): a integração Git da Vercel fica desligada (`vercel.json`). O `docker compose` continua sendo o ambiente de desenvolvimento e de testes.
+
+| Evento | O que roda |
+|---|---|
+| Push ou pull request em qualquer ramo | Só o job `verificar`: `npm run verificar` com um `.env` fictício (`scripts/preparar-env-ci.mjs`), sem nenhum segredo |
+| Push na `main` com o `verificar` verde | Job `publicar` (environment `producao`): migração e `demo:semear` pela URL direta do Neon, depois `vercel build --prod` e `vercel deploy --prebuilt --prod` |
+| `verificar` vermelho ou qualquer passo do `publicar` falhando | Nada é publicado; a versão anterior segue no ar |
+
+### Montar o ambiente (uma vez, por quem tem as contas)
+
+1. **Neon:** crie o projeto pelo marketplace da Vercel, região São Paulo. Guarde duas URLs: a **do pooler** (host com `-pooler`) para a aplicação e a **direta** para migração, semeadura e backup.
+2. **Vercel:** crie o projeto **sem conectar o repositório** (ou desligue a integração Git). Anote `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID` (arquivo `.vercel/project.json` depois de `npx vercel link`) e crie um token (`VERCEL_TOKEN`).
+3. **Variáveis do projeto na Vercel (Production):**
+
+   | Variável | Valor |
+   |---|---|
+   | `DATABASE_URL` | URL **do pooler** do Neon |
+   | `DB_POOL_MAX` | `3` |
+   | `PRE_CARREGAR_NA_SUBIDA` | `false` (a carga do exemplo é do `demo:semear`) |
+   | `APP_URL` | `https://<projeto>.vercel.app` (https liga o cookie `Secure`) |
+   | `DEMO_ANALISTA_USUARIO`, `DEMO_ANALISTA_NOME`, `DEMO_ANALISTA_SENHA_HASH` | Conta de analista (hash por `npm run senha:hash`) |
+   | `DEMO_ADMIN_USUARIO`, `DEMO_ADMIN_NOME`, `DEMO_ADMIN_SENHA_HASH` | Conta de administrador |
+
+4. **GitHub:** crie o environment `producao` (Settings, Environments) com os segredos `DATABASE_URL_DIRETA`, `VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`. Nenhum desses valores entra no repositório nem no `.env.example`.
+5. Faça o merge na `main` e acompanhe a aba Actions. Depois da primeira publicação, confira `https://<projeto>.vercel.app/api/saude` (`"status":"ok"`) e a região das funções (`gru1`) no painel; se a região não estiver disponível no Hobby, crie o banco na mesma região da função.
+
+### Trocar a senha de uma conta
+
+Gere o novo hash (`npm run senha:hash`), troque `DEMO_*_SENHA_HASH` nas variáveis da Vercel e publique de novo (reexecute o job `publicar` ou faça um push na `main`). Sem mudança de código: a impressão da credencial muda e as sessões antigas deixam de valer.
+
+### Backup e restauração
+
+```bash
+# backup (URL direta do Neon; o arquivo traz dados e estrutura)
+pg_dump -Fc "$DATABASE_URL_DIRETA" -f acarau-backup.dump
+
+# restauração num banco do compose, para conferir (docker compose up -d db)
+docker compose exec -T db createdb -U "$POSTGRES_USER" acarau_restaurado
+docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d acarau_restaurado --no-owner < acarau-backup.dump
+```
+
+Para abrir a aplicação local sobre o banco restaurado, aponte `DATABASE_URL` para `acarau_restaurado` e rode `npm run dev`. Os mesmos datasets, obras e eventos de auditoria devem aparecer.
+
+### Limites do plano gratuito
+
+- **Hobby da Vercel:** uso pessoal e não comercial nos termos do plano; para uso comercial é preciso migrar de plano (Pro). Corpo de requisição de até 4,5 MB, por isso o upload de CSV é limitado a **4 MB** em todo ambiente. Logs com retenção curta: o "quem fez o quê" fica na auditoria do banco.
+- **Neon gratuito:** o banco "dorme" sem uso e o primeiro acesso demora alguns segundos; há limite de armazenamento e de horas de computação por mês.
+- **GitHub Actions:** gratuito no repositório, com limite mensal de minutos em repositório privado.
+- **Antes de uma reunião:** abra `/api/saude` e a página Início cerca de 5 minutos antes, para acordar o banco e aquecer a função.
+
+### Migrar de plano (se o Hobby deixar de servir)
+
+Crie o projeto no plano pago, repita os passos de "Montar o ambiente" com as novas credenciais e atualize os segredos do environment `producao`. Nada no código muda.
 
 ## Dados
 

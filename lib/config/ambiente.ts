@@ -18,6 +18,14 @@ function inteiroPositivo(padrao: number) {
     .transform((valor) => valor ?? padrao)
 }
 
+// Booleano por texto: só "true" e "false" valem (qualquer outro valor é erro de configuração).
+function booleano(padrao: boolean) {
+  return z
+    .enum(["true", "false"])
+    .optional()
+    .transform((valor) => (valor === undefined ? padrao : valor === "true"))
+}
+
 const esquemaAmbiente = z
   .object({
     DATABASE_URL: urlValida,
@@ -33,6 +41,10 @@ const esquemaAmbiente = z
     LOGIN_JANELA_MIN: inteiroPositivo(15),
     LOGIN_BLOQUEIO_MIN: inteiroPositivo(15),
     LOG_NIVEL: z.enum(NIVEIS_LOG).default("info"),
+    // `false` na Vercel: a carga do exemplo é do `demo:semear`, não de cada subida (DEC-T-06).
+    PRE_CARREGAR_NA_SUBIDA: booleano(true),
+    // Conexões por instância; na Vercel, 3 com a URL do pooler (RF-05.32).
+    DB_POOL_MAX: inteiroPositivo(10),
   })
   .superRefine((valores, contexto) => {
     const analista = valores.DEMO_ANALISTA_USUARIO.toLowerCase()

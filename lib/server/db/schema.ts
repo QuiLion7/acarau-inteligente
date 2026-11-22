@@ -18,6 +18,11 @@ import {
 } from "drizzle-orm/pg-core"
 
 import {
+  RESULTADOS_AUDITORIA,
+  TIPOS_ALVO_AUDITORIA,
+  TIPOS_EVENTO_AUDITORIA,
+} from "@/lib/auditoria/eventos-auditoria"
+import {
   CATEGORIAS_OBRA,
   ESTADOS_LOCALIZACAO_OBRA,
   SITUACOES_OBRA,
@@ -250,6 +255,57 @@ export const obraHistorico = pgTable(
   ]
 )
 
+// Auditoria (TechSpec EP-05 §4.4, DV-48): só inserção; nenhuma rota altera ou apaga evento e o reset não a toca
+// (RN-05.07). `alvo_id` não tem FK de propósito: o reset apaga o alvo e o evento continua (DEC-T-10).
+export const eventoAuditoria = pgTable(
+  "evento_auditoria",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    ocorridoEm: instante("ocorrido_em").notNull(),
+    tipo: text("tipo").notNull(),
+    // Usuário normalizado de uma conta demo; `null` = conta desconhecida ou sem sessão.
+    conta: text("conta"),
+    resultado: text("resultado").notNull(),
+    alvoTipo: text("alvo_tipo"),
+    alvoId: uuid("alvo_id"),
+    detalhes: jsonb("detalhes")
+      .$type<Record<string, string | number | boolean>>()
+      .notNull()
+      .default({}),
+    requestId: uuid("request_id"),
+  },
+  (tabela) => [
+    index("evento_auditoria_ocorrido_em_idx").on(
+      tabela.ocorridoEm.desc(),
+      tabela.id.desc()
+    ),
+    index("evento_auditoria_tipo_ocorrido_em_idx").on(
+      tabela.tipo,
+      tabela.ocorridoEm.desc()
+    ),
+    index("evento_auditoria_conta_ocorrido_em_idx").on(
+      tabela.conta,
+      tabela.ocorridoEm.desc()
+    ),
+    check(
+      "evento_auditoria_tipo_valido",
+      sql`${tabela.tipo} in (${listaSql(TIPOS_EVENTO_AUDITORIA)})`
+    ),
+    check(
+      "evento_auditoria_resultado_valido",
+      sql`${tabela.resultado} in (${listaSql(RESULTADOS_AUDITORIA)})`
+    ),
+    check(
+      "evento_auditoria_alvo_valido",
+      sql`${tabela.alvoTipo} is null or ${tabela.alvoTipo} in (${listaSql(TIPOS_ALVO_AUDITORIA)})`
+    ),
+    check(
+      "evento_auditoria_alvo_completo",
+      sql`(${tabela.alvoTipo} is null) = (${tabela.alvoId} is null)`
+    ),
+  ]
+)
+
 export type Sessao = typeof sessao.$inferSelect
 export type NovaSessao = typeof sessao.$inferInsert
 export type TentativaLogin = typeof tentativaLogin.$inferSelect
@@ -264,3 +320,5 @@ export type ObraLinha = typeof obra.$inferSelect
 export type NovaObraLinha = typeof obra.$inferInsert
 export type ObraHistoricoLinha = typeof obraHistorico.$inferSelect
 export type NovaObraHistoricoLinha = typeof obraHistorico.$inferInsert
+export type EventoAuditoriaLinha = typeof eventoAuditoria.$inferSelect
+export type NovoEventoAuditoriaLinha = typeof eventoAuditoria.$inferInsert

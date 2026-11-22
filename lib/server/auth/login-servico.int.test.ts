@@ -202,6 +202,31 @@ describe("entrar", () => {
     expect(await contar(sessao)).toBe(0)
   })
 
+  it("duas instâncias (dois pools) em rajada registram exatamente 5 falhas antes do bloqueio (TI-03, CA-05.23)", async () => {
+    const outraInstancia = criarBancoDeTeste()
+    try {
+      const rajada = Array.from({ length: 6 }, (_, posicao) =>
+        entrar(
+          USUARIO_ANALISTA,
+          `${SENHA_ERRADA}-${posicao}`,
+          AGORA,
+          REQUEST_ID,
+          posicao % 2 === 0 ? banco : outraInstancia
+        )
+      )
+
+      const tipos = (await Promise.all(rajada)).map((r) => r.tipo)
+
+      expect(
+        tipos.filter((tipo) => tipo === "credenciais-invalidas")
+      ).toHaveLength(5)
+      expect(tipos.filter((tipo) => tipo === "bloqueado")).toHaveLength(1)
+      expect(await contar(tentativaLogin)).toBe(5)
+    } finally {
+      await outraInstancia.$client.end()
+    }
+  })
+
   it("apaga sessões inativas há mais de 7 dias e tentativas com mais de 1 dia, e mantém as recentes", async () => {
     const dias = (n: number) => new Date(AGORA.getTime() - n * 86_400_000)
     await banco.insert(sessao).values([

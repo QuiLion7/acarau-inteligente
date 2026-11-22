@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { obterBanco } from "@/lib/server/db/cliente"
 import { ErroApi } from "@/lib/server/http/erro-api"
 import { rotaApi } from "@/lib/server/http/rota-api"
-import { log } from "@/lib/server/log"
+import { registrarEvento } from "@/lib/server/auditoria/registrar-evento"
 import { lerEntradaDeObra } from "@/lib/server/obras/ler-entrada-obra"
 import { registrandoRecusaDeObra } from "@/lib/server/obras/log-obra"
 import { criarObra } from "@/lib/server/obras/obra-servico"
@@ -17,7 +17,7 @@ export const POST = rotaApi(
     if (!sessao) throw new ErroApi("NAO_AUTENTICADO")
     const { usuario } = sessao
     return registrandoRecusaDeObra(
-      { requestId, usuario, operacao: "criar" },
+      { requestId, usuario, operacao: "criar", agora },
       async () => {
         const entrada = await lerEntradaDeObra(request)
         const obra = await criarObra(obterBanco(), entrada, {
@@ -25,13 +25,22 @@ export const POST = rotaApi(
           agora,
           territorio: obterDadosTerritorio(),
         })
-        log.info("obra.criada", {
-          requestId,
-          usuario,
-          obraId: obra.id,
-          situacao: obra.situacao,
-          estadoLocalizacao: obra.estadoLocalizacao,
-        })
+        await registrarEvento(
+          {
+            tipo: "obra_criada",
+            requestId,
+            conta: usuario,
+            alvo: { tipo: "obra", id: obra.id },
+            camposLog: {
+              requestId,
+              usuario,
+              obraId: obra.id,
+              situacao: obra.situacao,
+              estadoLocalizacao: obra.estadoLocalizacao,
+            },
+          },
+          { agora }
+        )
         return NextResponse.json(obra, { status: 201 })
       }
     )

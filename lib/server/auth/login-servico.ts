@@ -2,6 +2,8 @@ import "server-only"
 
 import { randomUUID } from "node:crypto"
 
+import { sql } from "drizzle-orm"
+
 import {
   avaliarBloqueio,
   inicioDaConsulta,
@@ -18,7 +20,11 @@ import {
   listarTentativasDesde,
   registrarTentativa,
 } from "@/lib/server/auth/tentativa-login-repositorio"
-import { log } from "@/lib/server/log"
+import { obterBanco, type Banco, type Transacao } from "@/lib/server/db/cliente"
+import {
+  registrarEvento,
+  type EventoAuditoriaNovo,
+} from "@/lib/server/auditoria/registrar-evento"
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000
 const SESSAO_INATIVA_DIAS = 7
@@ -44,40 +50,36 @@ function limitesDe(ambiente: Ambiente): LimitesBloqueio {
   }
 }
 
-async function limparRegistrosAntigos(agora: Date): Promise<void> {
+async function limparRegistrosAntigos(
+  agora: Date,
+  banco: Banco
+): Promise<void> {
   await Promise.all([
     apagarSessoesInativasAntesDe(
-      new Date(agora.getTime() - SESSAO_INATIVA_DIAS * MS_POR_DIA)
+      new Date(agora.getTime() - SESSAO_INATIVA_DIAS * MS_POR_DIA),
+      banco
     ),
     apagarTentativasAntesDe(
-      new Date(agora.getTime() - TENTATIVA_ANTIGA_DIAS * MS_POR_DIA)
+      new Date(agora.getTime() - TENTATIVA_ANTIGA_DIAS * MS_POR_DIA),
+      banco
     ),
   ])
 }
 
-// Tentativas do mesmo usuário passam uma de cada vez: sem isso uma rajada simultânea lê as mesmas falhas antes de
-// qualquer uma ser registrada e ultrapassa o limite (RF-00.29, CA-00.22). Um processo só atende o app (PR-01).
-const tentativasEmCurso = new Map<string, Promise<void>>()
-
-async function emSerieDoUsuario<T>(
+// Tentativas do mesmo usuário passam uma de cada vez, em qualquer instância: sem isso uma rajada simultânea lê as
+// mesmas falhas antes de qualquer uma ser registrada e ultrapassa o limite (RF-00.29, CA-00.22, RF-05.35). O lock da
+// transação (`pg_advisory_xact_lock`) vale entre processos e funciona no pooler em modo transação (DEC-T-07).
+export async function emSerieNoBanco<T>(
+  banco: Banco,
   usuario: string,
-  tarefa: () => Promise<T>
+  fn: (tx: Transacao) => Promise<T>
 ): Promise<T> {
-  const anterior = tentativasEmCurso.get(usuario)
-  let liberar: () => void = () => undefined
-  const minhaVez = new Promise<void>((resolve) => {
-    liberar = resolve
+  return banco.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`login:${usuario}`}, 0))`
+    )
+    return fn(tx)
   })
-  tentativasEmCurso.set(usuario, minhaVez)
-  try {
-    await anterior
-    return await tarefa()
-  } finally {
-    liberar()
-    if (tentativasEmCurso.get(usuario) === minhaVez) {
-      tentativasEmCurso.delete(usuario)
-    }
-  }
 }
 
 // Cada usuário é atendido em série; o fluxo de uma tentativa está em `tentarEntrar`.
@@ -85,36 +87,51 @@ export async function entrar(
   usuario: string,
   senha: string,
   agora: Date,
-  requestId: string
+  requestId: string,
+  banco: Banco = obterBanco()
 ): Promise<ResultadoEntrar> {
   const usuarioNormalizado = normalizarUsuario(usuario)
-  await limparRegistrosAntigos(agora)
-  return emSerieDoUsuario(usuarioNormalizado, () =>
-    tentarEntrar(usuarioNormalizado, senha, agora, requestId)
+  await limparRegistrosAntigos(agora, banco)
+  const { resultado, evento } = await emSerieNoBanco(
+    banco,
+    usuarioNormalizado,
+    (tx) => tentarEntrar(tx, usuarioNormalizado, senha, agora, requestId)
   )
+  // Depois do commit: a falha da auditoria não desfaz a tentativa registrada nem a sessão criada (RF-05.30).
+  await registrarEvento(evento, { banco, agora })
+  return resultado
 }
 
 // Ordem (TechSpec §3): bloqueio (quem está bloqueado nem tem a senha verificada) → conta → senha → tentativa → sessão.
 async function tentarEntrar(
+  tx: Transacao,
   usuarioNormalizado: string,
   senha: string,
   agora: Date,
   requestId: string
-): Promise<ResultadoEntrar> {
+): Promise<{ resultado: ResultadoEntrar; evento: EventoAuditoriaNovo }> {
   const ambiente = lerAmbiente()
   const limites = limitesDe(ambiente)
   const tentativas = await listarTentativasDesde(
     usuarioNormalizado,
-    inicioDaConsulta(agora, limites)
+    inicioDaConsulta(agora, limites),
+    tx
   )
   const bloqueio = avaliarBloqueio(tentativas, agora, limites)
   if (bloqueio.bloqueado) {
-    log.warn("auth.login_bloqueado", {
-      requestId,
-      usuario: usuarioNormalizado,
-      resultado: "bloqueado",
-    })
-    return { tipo: "bloqueado", esperaMinutos: bloqueio.esperaMinutos }
+    return {
+      resultado: { tipo: "bloqueado", esperaMinutos: bloqueio.esperaMinutos },
+      evento: {
+        tipo: "login_bloqueado",
+        requestId,
+        conta: buscarConta(usuarioNormalizado, ambiente)?.usuario ?? null,
+        camposLog: {
+          requestId,
+          usuario: usuarioNormalizado,
+          resultado: "bloqueado",
+        },
+      },
+    }
   }
 
   const conta = buscarConta(usuarioNormalizado, ambiente)
@@ -123,26 +140,36 @@ async function tentarEntrar(
     conta?.senhaHash ?? (await obterHashFicticio())
   )
   const sucesso = conta !== undefined && senhaConfere
-  await registrarTentativa({
-    usuario: usuarioNormalizado,
-    sucesso,
-    ocorridaEm: agora,
-  })
+  await registrarTentativa(
+    { usuario: usuarioNormalizado, sucesso, ocorridaEm: agora },
+    tx
+  )
 
   if (!conta || !senhaConfere) {
-    log.warn("auth.login_falha", {
-      requestId,
-      usuario: usuarioNormalizado,
-      resultado: "credenciais-invalidas",
-    })
-    return { tipo: "credenciais-invalidas" }
+    return {
+      resultado: { tipo: "credenciais-invalidas" },
+      // Usuário que não é conta demo vira "conta desconhecida": o texto digitado nunca é gravado (RF-05.25).
+      evento: {
+        tipo: "login_falha",
+        requestId,
+        conta: conta?.usuario ?? null,
+        camposLog: {
+          requestId,
+          usuario: usuarioNormalizado,
+          resultado: "credenciais-invalidas",
+        },
+      },
+    }
   }
 
-  const { token, sessao } = await criarSessao(conta, agora)
-  log.info("auth.login_sucesso", {
-    requestId,
-    usuario: sessao.usuario,
-    resultado: "sucesso",
-  })
-  return { tipo: "sucesso", token, sessao }
+  const { token, sessao } = await criarSessao(conta, agora, tx)
+  return {
+    resultado: { tipo: "sucesso", token, sessao },
+    evento: {
+      tipo: "login_sucesso",
+      requestId,
+      conta: sessao.usuario,
+      camposLog: { requestId, usuario: sessao.usuario, resultado: "sucesso" },
+    },
+  }
 }

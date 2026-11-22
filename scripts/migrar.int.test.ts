@@ -77,7 +77,7 @@ describe("scripts/migrar.mjs", () => {
     expect(primeira.status).toBe(0)
     expect(JSON.parse(primeira.stdout)).toMatchObject({
       evento: "db.migracao",
-      aplicadas: 3,
+      aplicadas: 4,
     })
     expect(depoisDaPrimeira.colunas).toEqual(
       expect.arrayContaining([
@@ -87,6 +87,7 @@ describe("scripts/migrar.mjs", () => {
         "dataset_linha.bairro_id:text",
         "obra.valor_previsto_centavos:bigint",
         "obra_historico.situacao_nova:text",
+        "evento_auditoria.alvo_id:uuid",
       ])
     )
     expect(segunda.status).toBe(0)

@@ -15,8 +15,14 @@ export type Transacao = Parameters<Parameters<Banco["transaction"]>[0]>[0]
 /** Banco ou transação: as operações que valem nos dois (a recarga da demo roda dentro da transação do reset). */
 export type Executor = Banco | Transacao
 
-export function criarBanco(urlConexao: string): Banco {
-  const pool = new Pool({ connectionString: urlConexao })
+const OCIOSA_MS = 10_000
+
+export function criarBanco(urlConexao: string, maxConexoes = 10): Banco {
+  const pool = new Pool({
+    connectionString: urlConexao,
+    max: maxConexoes,
+    idleTimeoutMillis: OCIOSA_MS,
+  })
   // Sem ouvinte, erro de conexão ociosa derrubaria o processo.
   pool.on("error", (erro) => log.error("db.pool_erro", { erro }))
   return drizzle({ client: pool, schema })
@@ -28,6 +34,12 @@ export function criarBanco(urlConexao: string): Banco {
 const escopoGlobal = globalThis as typeof globalThis & { __bancoAcarau?: Banco }
 
 export function obterBanco(): Banco {
-  escopoGlobal.__bancoAcarau ??= criarBanco(lerAmbiente().DATABASE_URL)
+  if (!escopoGlobal.__bancoAcarau) {
+    const ambiente = lerAmbiente()
+    escopoGlobal.__bancoAcarau = criarBanco(
+      ambiente.DATABASE_URL,
+      ambiente.DB_POOL_MAX
+    )
+  }
   return escopoGlobal.__bancoAcarau
 }

@@ -11,6 +11,7 @@ import {
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 import { useState } from "react"
 
+import { BotaoExportarCsv } from "@/components/exportacao/botao-exportar-csv"
 import {
   Table,
   TableBody,
@@ -21,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { ItemBairroPeriodo } from "@/lib/saude/analise-periodo"
+import { colunasCsvCasosBairros } from "@/lib/saude/csv-casos-bairros"
 import { cn } from "@/lib/utils"
 
 const formatadorDeNumero = new Intl.NumberFormat("pt-BR")
@@ -50,6 +52,8 @@ const ICONE_DA_ORDEM = { asc: ArrowUp, desc: ArrowDown } as const
 const SENTIDO_ARIA = { asc: "ascending", desc: "descending" } as const
 
 type TabelaCasosBairrosProps = {
+  /** Período e proveniência do dataset, para o CSV (RF-05.21); sem eles a tabela não oferece exportar. */
+  exportacao?: { periodo: string; proveniencia: string; bairro: string | null }
   itens: ItemBairroPeriodo[]
   selecionadoId: string | null
   onSelecionar: (idBairro: string) => void
@@ -57,6 +61,7 @@ type TabelaCasosBairrosProps = {
 
 // Os 24 bairros com o valor do período ou "sem dados" (RF-02.34, CA-02.22): alternativa completa ao mapa, ordenável.
 export function TabelaCasosBairros({
+  exportacao,
   itens,
   selecionadoId,
   onSelecionar,
@@ -78,6 +83,24 @@ export function TabelaCasosBairros({
       <h3 id="titulo-tabela" className="text-lg font-semibold">
         Casos por bairro
       </h3>
+      {exportacao ? (
+        <div className="flex justify-end">
+          <BotaoExportarCsv
+            colunas={colunasCsvCasosBairros(
+              exportacao.periodo,
+              exportacao.proveniencia
+            )}
+            obterLinhas={() =>
+              tabela
+                .getPrePaginationRowModel()
+                .rows.map(({ original }) => original)
+            }
+            tipo="casos-por-bairro"
+            bairro={exportacao.bairro}
+            descricao="casos por bairro"
+          />
+        </div>
+      ) : null}
       <Table>
         <TableCaption className="sr-only">
           Casos de cada bairro no período escolhido; bairros sem dados aparecem

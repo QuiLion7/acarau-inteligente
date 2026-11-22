@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures"
 
-// PA-02.01, PA-03.06 e PA-04.01: a Saúde (EP-02), a Educação (EP-03) e as Obras (EP-04) deixaram de ser "em breve"; Relatórios continua (PA-04.02).
-test.describe("módulos ainda não entregues", () => {
+// PA-02.01, PA-03.06, PA-04.01 e PA-05.01: a Saúde (EP-02), a Educação (EP-03), as Obras (EP-04) e os Relatórios (EP-05) deixaram de ser "em breve".
+test.describe("módulos já entregues", () => {
   test("a Educação não é mais disponível em breve (PA-03.06)", async ({
     page,
   }) => {
@@ -47,15 +47,18 @@ test.describe("módulos ainda não entregues", () => {
     ).toHaveCount(0)
   })
 
-  test("os Relatórios continuam disponível em breve (PA-04.02)", async ({
+  test("os Relatórios não são mais disponível em breve (PA-05.01)", async ({
     page,
   }) => {
     await page.goto("/relatorios")
 
     await expect(
-      page
-        .locator("#conteudo")
-        .getByRole("heading", { name: "Disponível em breve" })
+      page.getByRole("heading", { level: 1, name: "Relatórios" })
     ).toBeVisible()
+    await expect(
+      page.locator("#conteudo").getByRole("heading", {
+        name: "Disponível em breve",
+      })
+    ).toHaveCount(0)
   })
 })

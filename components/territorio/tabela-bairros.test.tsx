@@ -1,5 +1,7 @@
 import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { baixarBlob } from "@/lib/exportacao/baixar-arquivo"
+import { linhasDoCsvBaixado } from "@/test/csv-teste"
 
 import { TabelaBairros } from "@/components/territorio/tabela-bairros"
 
@@ -133,5 +135,30 @@ describe("TabelaBairros", () => {
     expect(
       screen.queryByText(/Nenhuma escola da base disponível/)
     ).not.toBeInTheDocument()
+  })
+})
+
+jest.mock("@/lib/exportacao/baixar-arquivo", () => ({ baixarBlob: jest.fn() }))
+
+describe("TabelaBairros: Exportar CSV (RF-05.18)", () => {
+  beforeEach(() => jest.mocked(baixarBlob).mockClear())
+
+  it("exporta os bairros na ordem da tela, com a área em vírgula decimal e o zero de escolas como 0", async () => {
+    const usuario = userEvent.setup()
+    renderizar()
+    await usuario.click(screen.getByRole("button", { name: /^Bairro/ }))
+
+    await usuario.click(
+      screen.getByRole("button", { name: "Exportar CSV: bairros da sede" })
+    )
+
+    const [blob, nome] = jest.mocked(baixarBlob).mock.calls[0]
+    expect(nome).toMatch(/^acarau-inteligente_bairros_\d{4}-\d{2}-\d{2}\.csv$/)
+    expect(await linhasDoCsvBaixado(blob)).toEqual([
+      "UV;Bairro;Área calculada (m²);Escolas",
+      "10;Centro;1266620,9;8",
+      "13;Rodagem;922822,4;0",
+      "3;São Benedito;79942,7;1",
+    ])
   })
 })

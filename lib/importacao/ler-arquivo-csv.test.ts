@@ -116,7 +116,7 @@ describe("lerArquivoCsv: leitura (TU-01)", () => {
 describe("lerArquivoCsv: limites (TU-02)", () => {
   it.each([
     [
-      "5 MB mais um byte",
+      "4 MB mais um byte",
       () => ({ nome: "a.csv", bytes: csvComTamanho(TAMANHO_MAXIMO_BYTES + 1) }),
       "ARQUIVO_GRANDE_DEMAIS",
     ],
@@ -160,7 +160,7 @@ describe("lerArquivoCsv: limites (TU-02)", () => {
     })
   })
 
-  it("aceita exatamente 5 MB e exatamente 10.000 linhas", () => {
+  it("aceita exatamente 4 MB e exatamente 10.000 linhas", () => {
     const noLimiteDeBytes = lerArquivoCsv({
       nome: "a.csv",
       bytes: csvNoLimiteDeTamanho(),

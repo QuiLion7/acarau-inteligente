@@ -1,5 +1,6 @@
 "use client"
 
+import type { Map as MapaMapLibre } from "maplibre-gl"
 import { useState } from "react"
 
 import { CardsEducacao } from "@/components/educacao/cards-educacao"
@@ -7,6 +8,8 @@ import { MetodologiaEducacao } from "@/components/educacao/metodologia-educacao"
 import { QuadroPendencias } from "@/components/educacao/quadro-pendencias"
 import { TabelaEscolasPorBairro } from "@/components/educacao/tabela-escolas-por-bairro"
 import { EstadoInterface } from "@/components/estados/estado-interface"
+import { BotaoBaixarMapa } from "@/components/exportacao/botao-baixar-mapa"
+import { LinkExportarRelatorio } from "@/components/relatorios/link-exportar-relatorio"
 import { FichaEscola } from "@/components/territorio/ficha-escola"
 import { LegendaMapa } from "@/components/territorio/legenda-mapa"
 import { MapaTerritorioDinamico } from "@/components/territorio/mapa-territorio-dinamico"
@@ -22,6 +25,11 @@ import {
 } from "@/components/ui/sheet"
 import { useFiltroBairro } from "@/hooks/use-filtro-bairro"
 import { TEXTOS_EDUCACAO } from "@/lib/config/textos-educacao"
+import {
+  legendaDasEscolas,
+  legendaDosBairros,
+} from "@/lib/exportacao/legendas-png"
+import { montarMolduraPng } from "@/lib/exportacao/moldura-png"
 import type {
   Bairro,
   Escola,
@@ -64,6 +72,7 @@ export function PainelEducacao({
   const [codigoEscolaAberta, setCodigoEscolaAberta] = useState<string | null>(
     null
   )
+  const [mapa, setMapa] = useState<MapaMapLibre | null>(null)
   const bairroSelecionado =
     selecao.tipo === "bairro"
       ? (bairros.find(({ id }) => id === selecao.bairro.id) ?? null)
@@ -74,13 +83,16 @@ export function PainelEducacao({
 
   return (
     <div className="flex flex-col gap-8">
-      <SeletorBairro
-        id="seletor-bairro"
-        bairros={bairros}
-        selecao={selecao}
-        onSelecionar={selecionar}
-        onLimpar={limpar}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <SeletorBairro
+          id="seletor-bairro"
+          bairros={bairros}
+          selecao={selecao}
+          onSelecionar={selecionar}
+          onLimpar={limpar}
+        />
+        <LinkExportarRelatorio />
+      </div>
       {selecao.tipo === "nao-reconhecido" ? (
         <EstadoInterface
           tipo="bairro-nao-reconhecido"
@@ -114,7 +126,24 @@ export function PainelEducacao({
             onSelecionar={selecionar}
             onAbrirEscola={setCodigoEscolaAberta}
             rotulo="Mapa das escolas por bairro de Acaraú"
+            aoCarregar={setMapa}
           />
+          <div className="flex justify-end">
+            <BotaoBaixarMapa
+              mapa={mapa}
+              moldura={montarMolduraPng({
+                titulo: "Educação - escolas por bairro",
+                bairro: bairroSelecionado?.nome ?? null,
+                legenda: [
+                  ...legendaDosBairros(bairroSelecionado !== null),
+                  ...legendaDasEscolas(),
+                ],
+                sintetico: false,
+              })}
+              tipo="mapa-educacao"
+              bairro={bairroSelecionado?.nome}
+            />
+          </div>
           <LegendaMapa marcadoresDeEscola={contarMarcadores(escolas)} />
         </section>
         <TabelaEscolasPorBairro

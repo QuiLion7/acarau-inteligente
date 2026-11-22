@@ -311,3 +311,29 @@ describe("MapaTerritorio: o que mudou antes do load", () => {
     ])
   })
 })
+
+describe("MapaTerritorio: aoCarregar (RF-05.22)", () => {
+  it("entrega o mapa no load e null quando o mapa é removido, sem recriá-lo nem mudar mais nada", async () => {
+    const aoCarregar = jest.fn()
+    const { unmount } = renderizar({ aoCarregar })
+    const [mapa] = instancias
+    expect(aoCarregar).not.toHaveBeenCalled()
+
+    await carregar(mapa)
+
+    expect(aoCarregar).toHaveBeenCalledTimes(1)
+    expect(aoCarregar).toHaveBeenLastCalledWith(mapa)
+    unmount()
+    expect(aoCarregar).toHaveBeenLastCalledWith(null)
+    expect(mapa.remove).toHaveBeenCalledTimes(1)
+  })
+
+  it("sem aoCarregar o mapa carrega e remove como sempre", async () => {
+    const { unmount } = renderizar()
+
+    await carregar(instancias[0])
+    unmount()
+
+    expect(instancias[0].remove).toHaveBeenCalledTimes(1)
+  })
+})

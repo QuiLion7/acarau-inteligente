@@ -23,9 +23,15 @@ const ADMINISTRADOR: SessaoValida = {
   papel: "administrador",
 }
 
+const registrarEvento = jest.fn<
+  ReturnType<DependenciasRota["registrarEvento"]>,
+  Parameters<DependenciasRota["registrarEvento"]>
+>()
+
 function montarRota(sessao: SessaoValida | null = null) {
   const dependencias: DependenciasRota = {
     agora: () => AGORA,
+    registrarEvento,
     appUrl: () => APP_URL,
     obterSessao: async () => sessao,
   }
@@ -52,6 +58,7 @@ function linhasDeLog(escrita: jest.SpyInstance): Record<string, unknown>[] {
 let escrita: jest.SpyInstance
 
 beforeEach(() => {
+  registrarEvento.mockReset().mockResolvedValue(undefined)
   escrita = jest.spyOn(process.stdout, "write").mockImplementation(() => true)
 })
 
@@ -235,12 +242,21 @@ describe("rotaApi: papel mínimo", () => {
       requestId: REQUEST_ID,
     })
     expect(manipulador).not.toHaveBeenCalled()
-    expect(linhasDeLog(escrita)[0]).toMatchObject({
-      evento: "auth.acesso_negado",
-      motivo: "nao-autenticado",
-      rota: "/api/teste",
-      requestId: REQUEST_ID,
-    })
+    expect(registrarEvento).toHaveBeenCalledWith(
+      {
+        tipo: "acesso_negado",
+        requestId: REQUEST_ID,
+        conta: null,
+        detalhes: { rota: "/api/teste", motivo: "nao-autenticado" },
+        camposLog: {
+          requestId: REQUEST_ID,
+          rota: "/api/teste",
+          motivo: "nao-autenticado",
+          usuario: undefined,
+        },
+      },
+      { agora: AGORA }
+    )
   })
 
   it("devolve 403 SEM_PERMISSAO quando o papel está abaixo do mínimo e loga o usuário", async () => {
@@ -252,11 +268,15 @@ describe("rotaApi: papel mínimo", () => {
     expect(resposta.status).toBe(403)
     expect(await resposta.text()).not.toContain("analista")
     expect(manipulador).not.toHaveBeenCalled()
-    expect(linhasDeLog(escrita)[0]).toMatchObject({
-      evento: "auth.acesso_negado",
-      motivo: "sem-permissao",
-      usuario: "analista",
-    })
+    expect(registrarEvento).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "acesso_negado",
+        conta: "analista",
+        detalhes: { rota: "/api/teste", motivo: "sem-permissao" },
+        camposLog: expect.objectContaining({ usuario: "analista" }),
+      }),
+      { agora: AGORA }
+    )
   })
 
   it.each([

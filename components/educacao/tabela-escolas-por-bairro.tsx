@@ -11,6 +11,7 @@ import {
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react"
 import { useState } from "react"
 
+import { BotaoExportarCsv } from "@/components/exportacao/botao-exportar-csv"
 import {
   Table,
   TableBody,
@@ -24,6 +25,10 @@ import {
 import { TEXTOS_EDUCACAO } from "@/lib/config/textos-educacao"
 import type { Bairro, QualidadeEscolas } from "@/lib/territorio/artefato-schema"
 import { foraDaCoberturaDosBairros } from "@/lib/territorio/contagem-cobertura"
+import {
+  COLUNAS_CSV_ESCOLAS_POR_BAIRRO,
+  linhasCsvEscolasPorBairro,
+} from "@/lib/territorio/csv-escolas-por-bairro"
 import { ROTULO_ESTADO_ESCOLA } from "@/lib/territorio/estado-escola"
 import { cn } from "@/lib/utils"
 
@@ -104,6 +109,21 @@ export function TabelaEscolasPorBairro({
       <h3 id="titulo-escolas-por-bairro" className="text-lg font-semibold">
         {TEXTOS.titulo}
       </h3>
+      <div className="flex justify-end">
+        <BotaoExportarCsv
+          colunas={COLUNAS_CSV_ESCOLAS_POR_BAIRRO}
+          obterLinhas={() =>
+            linhasCsvEscolasPorBairro(
+              tabela
+                .getPrePaginationRowModel()
+                .rows.map(({ original }) => original),
+              qualidade
+            )
+          }
+          tipo="escolas-por-bairro"
+          descricao="escolas por bairro"
+        />
+      </div>
       <Table>
         <TableCaption className="sr-only">{TEXTOS.legenda}</TableCaption>
         <TableHeader>

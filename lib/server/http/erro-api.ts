@@ -28,7 +28,7 @@ const CATALOGO = {
   },
   ARQUIVO_GRANDE_DEMAIS: {
     status: 413,
-    mensagem: "O arquivo é maior que o limite de 5 MB.",
+    mensagem: "O arquivo é maior que o limite de 4 MB.",
   },
   IMPORTACAO_INVALIDA: {
     status: 422,

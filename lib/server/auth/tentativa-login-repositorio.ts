@@ -3,22 +3,24 @@ import "server-only"
 import { and, desc, eq, gte, lt } from "drizzle-orm"
 
 import type { TentativaRecente } from "@/lib/auth/bloqueio-login"
-import { obterBanco } from "@/lib/server/db/cliente"
+import { obterBanco, type Executor } from "@/lib/server/db/cliente"
 import { tentativaLogin } from "@/lib/server/db/schema"
 
 type NovaTentativa = { usuario: string; sucesso: boolean; ocorridaEm: Date }
 
 export async function registrarTentativa(
-  tentativa: NovaTentativa
+  tentativa: NovaTentativa,
+  banco: Executor = obterBanco()
 ): Promise<void> {
-  await obterBanco().insert(tentativaLogin).values(tentativa)
+  await banco.insert(tentativaLogin).values(tentativa)
 }
 
 export async function listarTentativasDesde(
   usuario: string,
-  desde: Date
+  desde: Date,
+  banco: Executor = obterBanco()
 ): Promise<TentativaRecente[]> {
-  return obterBanco()
+  return banco
     .select({
       sucesso: tentativaLogin.sucesso,
       ocorridaEm: tentativaLogin.ocorridaEm,
@@ -33,8 +35,11 @@ export async function listarTentativasDesde(
     .orderBy(desc(tentativaLogin.ocorridaEm))
 }
 
-export async function apagarTentativasAntesDe(limite: Date): Promise<void> {
-  await obterBanco()
+export async function apagarTentativasAntesDe(
+  limite: Date,
+  banco: Executor = obterBanco()
+): Promise<void> {
+  await banco
     .delete(tentativaLogin)
     .where(lt(tentativaLogin.ocorridaEm, limite))
 }

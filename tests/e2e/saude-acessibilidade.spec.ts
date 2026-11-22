@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright"
 import type { Page } from "@playwright/test"
 
 import {
@@ -7,6 +6,7 @@ import {
   entrarPelaApi,
   reiniciarDemo,
 } from "./acesso-helpers"
+import { violacoesGraves } from "./acessibilidade-helpers"
 import { expect, test } from "./fixtures"
 import { aguardarMapaPronto } from "./mapa-helpers"
 import {
@@ -14,13 +14,6 @@ import {
   decidirBairrosDoRoteiro,
   enviarArquivo,
 } from "./saude-helpers"
-
-async function violacoesGraves(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).analyze()
-  return violations.filter(
-    ({ impact }) => impact === "serious" || impact === "critical"
-  )
-}
 
 const larguraDaPagina = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth)

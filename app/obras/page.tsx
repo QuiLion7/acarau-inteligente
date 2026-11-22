@@ -9,7 +9,7 @@ import { obterBanco } from "@/lib/server/db/cliente"
 import { log } from "@/lib/server/log"
 import { listarObras } from "@/lib/server/obras/obra-repositorio"
 import { obterDadosTerritorio } from "@/lib/server/territorio/territorio-repositorio"
-import type { Obra } from "@/lib/validations/obra-schema"
+import { idObraSchema, type Obra } from "@/lib/validations/obra-schema"
 
 const modulo = moduloPorId("obras")
 
@@ -26,6 +26,19 @@ async function lerObras(): Promise<Obra[] | null> {
 }
 
 type ParametrosDaUrl = Record<string, string | string[] | undefined>
+
+// `obra=<uuid>` abre a ficha (link da auditoria, RF-05.28); valor que não é uuid ou obra que não existe é ignorado.
+function obraDaUrl(
+  parametro: string | string[] | undefined,
+  obras: readonly Obra[]
+): string | null {
+  const lido = idObraSchema.safeParse(
+    Array.isArray(parametro) ? parametro[0] : parametro
+  )
+  return lido.success && obras.some(({ id }) => id === lido.data)
+    ? lido.data
+    : null
+}
 
 // Server Component (DV-17, DV-42): leitura pública, sem `GET`; lê as obras com o histórico, a sessão e o território e
 // entrega ao cliente só o que a tela usa. Todos os perfis veem todas as obras (RF-04.01); "Nova obra" e "Editar" só
@@ -59,6 +72,7 @@ export default async function PaginaObras({
           regraFronteira={regraFronteira}
           podeEditar={podeEditar}
           abrirNova={parametros.nova === "1"}
+          obraInicialId={obraDaUrl(parametros.obra, obras)}
         />
       ) : (
         <EstadoInterface tipo="erro" />

@@ -144,12 +144,20 @@ const OBRAS = [
   }),
 ]
 
-type OpcoesDoPainel = { podeEditar?: boolean; abrirNova?: boolean }
+type OpcoesDoPainel = {
+  podeEditar?: boolean
+  abrirNova?: boolean
+  obraInicialId?: string | null
+}
 
 function renderizar(
   parametros = "",
   obras = OBRAS,
-  { podeEditar = false, abrirNova = false }: OpcoesDoPainel = {}
+  {
+    podeEditar = false,
+    abrirNova = false,
+    obraInicialId = null,
+  }: OpcoesDoPainel = {}
 ) {
   consulta = parametros
   return render(
@@ -160,6 +168,7 @@ function renderizar(
       regraFronteira={regraFronteira}
       podeEditar={podeEditar}
       abrirNova={abrirNova}
+      obraInicialId={obraInicialId}
     />
   )
 }
@@ -171,6 +180,44 @@ function cartao(nome: string) {
 beforeEach(() => {
   jest.clearAllMocks()
   Element.prototype.scrollIntoView = jest.fn()
+})
+
+describe("PainelObras: Exportar relatório (CA-05.02, PA-05.10)", () => {
+  it("o visitante tem o link, com o bairro da URL e sem a situação, que é local de Obras", () => {
+    renderizar("bairro=uv-03&situacao=suspensa")
+
+    expect(
+      screen.getByRole("link", { name: "Exportar relatório" })
+    ).toHaveAttribute("href", "/relatorios?bairro=uv-03")
+  })
+
+  it("o analista vê o link ao lado de Nova obra", () => {
+    renderizar("", OBRAS, { podeEditar: true })
+
+    expect(
+      screen.getByRole("link", { name: "Exportar relatório" })
+    ).toBeVisible()
+    expect(screen.getByRole("button", { name: "Nova obra" })).toBeVisible()
+  })
+})
+
+describe("PainelObras: obra inicial vinda da auditoria (RF-05.28)", () => {
+  it("abre a ficha da obra pedida e destaca o marcador dela", () => {
+    renderizar("", OBRAS, { obraInicialId: "obra-benedito" })
+
+    expect(screen.getByRole("dialog", { name: /ficha da obra/i })).toBeVisible()
+    expect(screen.getByText("Obra destacada: obra-benedito")).toBeVisible()
+    expect(
+      within(screen.getByRole("dialog")).getByText("DEMO - Via em São Benedito")
+    ).toBeVisible()
+  })
+
+  it("sem obra inicial a ficha começa fechada", () => {
+    renderizar()
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(screen.getByText("Obra destacada: nenhuma")).toBeVisible()
+  })
 })
 
 describe("PainelObras: visitante sem filtro (CA-04.01, CA-04.02, TU-12)", () => {
@@ -552,5 +599,15 @@ describe("PainelObras: nova=1 (CA-04.22)", () => {
     expect(
       screen.getByRole("heading", { name: "Lista de obras" })
     ).toBeVisible()
+  })
+})
+
+describe("PainelObras: Baixar mapa (PNG) (RF-05.22, PA-05.10)", () => {
+  it("oferece o botão, desabilitado enquanto o mapa não entrega a instância", () => {
+    renderizar()
+
+    expect(
+      screen.getByRole("button", { name: "Baixar mapa (PNG)" })
+    ).toBeDisabled()
   })
 })

@@ -13,6 +13,14 @@ docs
 sdd
 .claude
 tests
+# O playwright.config.ts importa de tests/e2e; fora do contexto, o type-check do `next build` não o enxerga.
+playwright.config.ts
 test-results
 playwright-report
 *.md
+# Chaves privadas locais (também no .gitignore): nunca entram no contexto de build.
+261508
+261508.pub
+quilion
+quilion.pub
+.github

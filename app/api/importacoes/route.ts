@@ -6,7 +6,7 @@ import { registrarFalhaDeImportacao } from "@/lib/server/datasets/log-importacao
 import { obterBanco } from "@/lib/server/db/cliente"
 import { ErroApi } from "@/lib/server/http/erro-api"
 import { rotaApi } from "@/lib/server/http/rota-api"
-import { log } from "@/lib/server/log"
+import { registrarEvento } from "@/lib/server/auditoria/registrar-evento"
 
 // Confirma a importação (RF-02.19 a RF-02.22): multipart com `arquivo` e `dados`, só analista ou acima, com `Origin`
 // conferida. A leitura confere o `Content-Length` antes de ler o corpo (DV-30).
@@ -25,18 +25,32 @@ export const POST = rotaApi(
         agora,
       })
       const { datasetId, versaoId, numero, linhasGravadas } = gravada
-      log.info("importacao.confirmada", {
-        requestId,
-        usuario: sessao.usuario,
-        datasetId,
-        versaoId,
-        numero,
-        linhas: linhasGravadas,
-        duracaoMs: Math.round(performance.now() - inicio),
-      })
+      await registrarEvento(
+        {
+          tipo: "importacao_confirmada",
+          requestId,
+          conta: sessao.usuario,
+          alvo: { tipo: "dataset_versao", id: versaoId },
+          detalhes: { numero, linhas: linhasGravadas },
+          camposLog: {
+            requestId,
+            usuario: sessao.usuario,
+            datasetId,
+            versaoId,
+            numero,
+            linhas: linhasGravadas,
+            duracaoMs: Math.round(performance.now() - inicio),
+          },
+        },
+        { agora }
+      )
       return NextResponse.json({ datasetId, versaoId, numero }, { status: 201 })
     } catch (erro) {
-      registrarFalhaDeImportacao(erro, { requestId, usuario: sessao.usuario })
+      await registrarFalhaDeImportacao(
+        erro,
+        { requestId, usuario: sessao.usuario },
+        agora
+      )
       throw erro
     }
   },

@@ -1,5 +1,6 @@
 "use client"
 
+import type { Map as MapaMapLibre } from "maplibre-gl"
 import { useMemo } from "react"
 
 import { MapaTerritorioDinamico } from "@/components/territorio/mapa-territorio-dinamico"
@@ -12,6 +13,8 @@ type MapaCoropleticoProps = {
   analise: AnalisePeriodo
   selecionadoId: string | null
   onSelecionar: (idBairro: string) => void
+  /** Entrega o mapa MapLibre carregado (e `null` ao removê-lo), para o "Baixar mapa (PNG)" (RF-05.22). */
+  aoCarregar?: (mapa: MapaMapLibre | null) => void
 }
 
 // O coroplético lê o mesmo `AnalisePeriodo` da legenda, do ranking e da tabela (CA-02.19): só a situação e a classe de
@@ -21,6 +24,7 @@ export function MapaCoropletico({
   analise,
   selecionadoId,
   onSelecionar,
+  aoCarregar,
 }: MapaCoropleticoProps) {
   const coropletico = useMemo<DadosCoropletico>(
     () =>
@@ -42,6 +46,7 @@ export function MapaCoropletico({
       selecionadoId={selecionadoId}
       onSelecionar={onSelecionar}
       coropletico={coropletico}
+      aoCarregar={aoCarregar}
     />
   )
 }

@@ -420,7 +420,7 @@ describe("POST /api/importacoes: o servidor roda o motor de novo (TI-08)", () =>
 
   it("recusa o Content-Length acima do limite com 413, antes de ler o corpo", async () => {
     const resposta = await POST(
-      await requisicaoDeImportacao({ token, contentLength: 6 * 1024 * 1024 })
+      await requisicaoDeImportacao({ token, contentLength: 5 * 1024 * 1024 })
     )
 
     expect(resposta.status).toBe(413)
@@ -431,7 +431,7 @@ describe("POST /api/importacoes: o servidor roda o motor de novo (TI-08)", () =>
   })
 
   it("recusa o arquivo acima do limite mesmo com o Content-Length dentro da margem", async () => {
-    const grande = new Uint8Array(5 * 1024 * 1024 + 1).fill(0x61)
+    const grande = new Uint8Array(4 * 1024 * 1024 + 1).fill(0x61)
 
     const resposta = await POST(
       await requisicaoDeImportacao({
@@ -560,7 +560,7 @@ describe("POST /api/importacoes: validação do envio", () => {
 })
 
 describe("POST /api/importacoes: tamanho máximo (TI-11)", () => {
-  it("grava 10.000 linhas num arquivo de cerca de 5 MB e registra o tempo", async () => {
+  it("grava 10.000 linhas num arquivo de cerca de 4 MB e registra o tempo", async () => {
     const bairros = [
       "Centro",
       "Rodagem",
@@ -571,7 +571,7 @@ describe("POST /api/importacoes: tamanho máximo (TI-11)", () => {
       "Bailarina",
       "Perseguida",
     ]
-    const preenchimento = "x".repeat(480)
+    const preenchimento = "x".repeat(380)
     const linhas = Array.from({ length: 10_000 }, (_, i) => {
       const mes = String((i % 12) + 1).padStart(2, "0")
       const ano = 1900 + Math.floor(i / (12 * bairros.length))
@@ -580,14 +580,14 @@ describe("POST /api/importacoes: tamanho máximo (TI-11)", () => {
     const bytes = new TextEncoder().encode(
       ["bairro,ano,casos,observacao", ...linhas].join("\n")
     )
-    expect(bytes.length).toBeGreaterThan(4.5 * 1024 * 1024)
-    expect(bytes.length).toBeLessThanOrEqual(5 * 1024 * 1024)
+    expect(bytes.length).toBeGreaterThan(3.5 * 1024 * 1024)
+    expect(bytes.length).toBeLessThanOrEqual(4 * 1024 * 1024)
 
     const inicio = performance.now()
     const resposta = await POST(
       await requisicaoDeImportacao({
         token,
-        arquivo: { nome: "cinco-mb.csv", bytes },
+        arquivo: { nome: "quatro-mb.csv", bytes },
         dados: { ...DADOS_DO_ROTEIRO, separador: ",", decisoes: [] },
       })
     )
