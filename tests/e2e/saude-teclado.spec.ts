@@ -69,12 +69,12 @@ test.describe("Saúde só com o teclado (E2E-07)", () => {
     await expect(page).toHaveURL(/\/saude\?versao=[0-9a-f-]{36}$/)
   })
 
-  test("o visitante escolhe o período, o bairro e ordena a tabela sem mouse, com foco visível", async ({
+  test("EP-03 E2E-06: o visitante escolhe período, bairro e aba só com o teclado, com foco visível e foco no painel", async ({
     page,
   }) => {
     await page.goto("/saude")
     await expect(
-      page.getByRole("region", { name: "Total do período" })
+      page.getByRole("group", { name: "Total do período" })
     ).toBeVisible()
 
     // O gatilho do select mostra o valor e a seta de abrir juntos.
@@ -85,10 +85,31 @@ test.describe("Saúde só com o teclado (E2E-07)", () => {
     await page.keyboard.press("Enter")
     await expect(page).toHaveURL(/periodo=2025/)
 
-    const noRanking = await tabAte(page, "Centro")
-    expect(noRanking.at(-1)?.focoVisivel).toBe(true)
+    const noBairro = await tabAte(page, "Bairro")
+    expect(noBairro.at(-1)?.focoVisivel).toBe(true)
+    await page.keyboard.type("centro")
+    await expect(
+      page.getByRole("option", { name: "Centro (UV 10)" })
+    ).toBeVisible()
+    await page.keyboard.press("ArrowDown")
     await page.keyboard.press("Enter")
     await expect(page).toHaveURL(/bairro=uv-10/)
+    await expect(
+      page.getByRole("group", { name: "Bairro selecionado" })
+    ).toContainText("Centro")
+
+    // As setas só percorrem as abas: a ativação é por Enter e então o foco vai ao painel (DEC-T-10).
+    const naAbaMapa = await tabAte(page, "Mapa")
+    expect(naAbaMapa.at(-1)?.focoVisivel).toBe(true)
+    await page.keyboard.press("ArrowRight")
+    expect((await focoAtual(page)).nome).toBe("Tabela")
+    expect((await focoAtual(page)).focoVisivel).toBe(true)
+    await expect(page.getByRole("tab", { name: "Mapa" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+    await page.keyboard.press("Enter")
+    await expect(page.getByRole("tabpanel", { name: "Tabela" })).toBeFocused()
     await expect(
       page
         .getByRole("region", { name: "Casos por bairro" })

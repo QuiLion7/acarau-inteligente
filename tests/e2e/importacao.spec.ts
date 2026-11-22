@@ -115,6 +115,32 @@ test.describe("importação de CSV pelo analista", () => {
 
     await expect(page).toHaveURL(/\/saude\?versao=[0-9a-f-]{36}$/)
 
+    // EP-03 E2E-15: a versão privada abre com o aviso e com cards, abas e metodologia (CA-03.28, PA-03.01).
+    await expect(
+      page.getByText("Privado: não visível ao visitante.")
+    ).toBeVisible()
+    await expect(
+      page.getByRole("region", { name: "Resumo do período" })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("group", { name: "Total do período" })
+    ).toBeVisible()
+    await expect(page.getByRole("tab", { name: "Mapa" })).toBeVisible()
+    await page.getByRole("tab", { name: "Tabela" }).click()
+    await expect(
+      page.getByRole("region", { name: "Casos por bairro" })
+    ).toBeVisible()
+    await page
+      .getByRole("button", { name: "Como os números são calculados" })
+      .click()
+    await expect(
+      page.getByText(nomeDoDataset, { exact: true }).last()
+    ).toBeVisible()
+    await expect(page.getByText("anual", { exact: true })).toBeVisible()
+    await expect(
+      page.getByRole("button", { name: "Publicar esta versão" })
+    ).toBeVisible()
+
     await page.goto("/saude/datasets")
     const linha = page.getByRole("row").filter({ hasText: nomeDoDataset })
     await expect(linha.getByText("Privado")).toBeVisible()

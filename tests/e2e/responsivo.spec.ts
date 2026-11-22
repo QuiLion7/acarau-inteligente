@@ -72,6 +72,23 @@ test.describe("360 px com o mapa", () => {
     expect(await larguraDaPagina(page)).toBeLessThanOrEqual(360)
   })
 
+  test("EP-03 E2E-17 (Educação): com bairro, metodologia aberta e lista, não rola na horizontal", async ({
+    page,
+  }) => {
+    await page.goto("/educacao?bairro=uv-10")
+    await aguardarMapaPronto(
+      page.getByRole("region", {
+        name: "Mapa das escolas por bairro de Acaraú",
+      })
+    )
+    await page
+      .getByRole("button", { name: "Como os números são calculados" })
+      .click()
+    await expect(page.getByText("menor código de UV")).toBeVisible()
+
+    expect(await larguraDaPagina(page)).toBeLessThanOrEqual(360)
+  })
+
   test("Início com o mapa resumido pronto não rola na horizontal", async ({
     page,
   }) => {

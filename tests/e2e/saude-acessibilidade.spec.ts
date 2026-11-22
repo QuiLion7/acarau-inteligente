@@ -44,6 +44,27 @@ test.describe("Saúde: acessibilidade, 360 px e console (E2E-08)", () => {
     expect(await violacoesGraves(page)).toEqual([])
   })
 
+  test("EP-03 E2E-16: a Saúde com a aba Tabela e a metodologia abertas, e com bairro não reconhecido, não tem violação grave", async ({
+    page,
+  }) => {
+    await page.goto("/saude?bairro=uv-10")
+    await page.getByRole("tab", { name: "Tabela" }).click()
+    await expect(
+      page.getByRole("region", { name: "Casos por bairro" })
+    ).toBeVisible()
+    await page
+      .getByRole("button", { name: "Como os números são calculados" })
+      .click()
+    await expect(page.getByText("anual", { exact: true })).toBeVisible()
+    expect(await violacoesGraves(page)).toEqual([])
+
+    await page.goto("/saude?bairro=uv-99")
+    await expect(
+      page.getByRole("heading", { name: "Bairro não reconhecido" })
+    ).toBeVisible()
+    expect(await violacoesGraves(page)).toEqual([])
+  })
+
   test("a Saúde com período sem dados também não tem violação grave", async ({
     page,
   }) => {
@@ -131,6 +152,22 @@ test.describe("Saúde em 360 px (RNF-02.03)", () => {
     await expect(
       page.getByRole("img", { name: /Gráfico de linha/ })
     ).toBeVisible()
+
+    expect(await larguraDaPagina(page)).toBeLessThanOrEqual(360)
+  })
+
+  test("EP-03 E2E-17: a Saúde com a aba Tabela e a metodologia abertas não rola na horizontal em 360 px", async ({
+    page,
+  }) => {
+    await page.goto("/saude?bairro=uv-10")
+    await page.getByRole("tab", { name: "Tabela" }).click()
+    await expect(
+      page.getByRole("region", { name: "Casos por bairro" })
+    ).toBeVisible()
+    await page
+      .getByRole("button", { name: "Como os números são calculados" })
+      .click()
+    await expect(page.getByText("anual", { exact: true })).toBeVisible()
 
     expect(await larguraDaPagina(page)).toBeLessThanOrEqual(360)
   })
