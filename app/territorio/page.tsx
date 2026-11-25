@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
 import { ExploradorTerritorio } from "@/components/territorio/explorador-territorio"
@@ -60,12 +61,14 @@ export default async function PaginaTerritorio({
           }
         />
       ) : (
-        <ExploradorTerritorio
-          bairros={bairros}
-          limite={limite}
-          escolas={escolas}
-          qualidade={qualidade}
-        />
+        <Suspense fallback={null}>
+          <ExploradorTerritorio
+            bairros={bairros}
+            limite={limite}
+            escolas={escolas}
+            qualidade={qualidade}
+          />
+        </Suspense>
       )}
     </div>
   )

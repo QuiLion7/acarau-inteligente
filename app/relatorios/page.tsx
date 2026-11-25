@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { FiltrosRelatorio } from "@/app/relatorios/components/filtros-relatorio"
 import { EstadoInterface } from "@/components/estados/estado-interface"
@@ -77,10 +78,12 @@ export default async function PaginaRelatorios({
       </header>
       {resultado?.status === "ok" ? (
         <>
-          <FiltrosRelatorio
-            bairros={listarResumoBairros()}
-            periodos={periodos}
-          />
+          <Suspense fallback={null}>
+            <FiltrosRelatorio
+              bairros={listarResumoBairros()}
+              periodos={periodos}
+            />
+          </Suspense>
           <BotaoGerarPdf dados={resultado.dados} />
           <PreviaRelatorio dados={resultado.dados} />
         </>

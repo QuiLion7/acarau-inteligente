@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { FiltrosAuditoriaForm } from "@/app/admin/auditoria/components/filtros-auditoria"
 import { TabelaAuditoria } from "@/app/admin/auditoria/components/tabela-auditoria"
@@ -80,16 +81,18 @@ export default async function PaginaAuditoria({
           </Link>
         </p>
       </header>
-      <FiltrosAuditoriaForm
-        filtros={filtros}
-        contas={contas}
-        haFiltro={haFiltro}
-      />
-      {pagina ? (
-        <TabelaAuditoria pagina={pagina} haFiltro={haFiltro} />
-      ) : (
-        <EstadoInterface tipo="erro" />
-      )}
+      <Suspense fallback={null}>
+        <FiltrosAuditoriaForm
+          filtros={filtros}
+          contas={contas}
+          haFiltro={haFiltro}
+        />
+        {pagina ? (
+          <TabelaAuditoria pagina={pagina} haFiltro={haFiltro} />
+        ) : (
+          <EstadoInterface tipo="erro" />
+        )}
+      </Suspense>
     </div>
   )
 }

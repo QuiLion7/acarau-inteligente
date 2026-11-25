@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
 import { AnaliseSaude } from "@/components/saude/analise-saude"
@@ -42,10 +43,12 @@ export default async function PaginaSaude({
         <p className="text-muted-foreground">{modulo.descricao}</p>
       </header>
       {resultado.status === "ok" ? (
-        <AnaliseSaude
-          analise={resultado.analise}
-          mapa={obterDadosMapaResumo()}
-        />
+        <Suspense fallback={null}>
+          <AnaliseSaude
+            analise={resultado.analise}
+            mapa={obterDadosMapaResumo()}
+          />
+        </Suspense>
       ) : null}
       {resultado.status === "nenhum-dataset" ? (
         <EstadoInterface
