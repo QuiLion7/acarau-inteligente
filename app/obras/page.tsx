@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
 import { EstadoInterface } from "@/components/estados/estado-interface"
 import { PainelObras } from "@/components/obras/painel-obras"
@@ -65,15 +66,17 @@ export default async function PaginaObras({
         <p className="text-muted-foreground">{modulo.descricao}</p>
       </header>
       {obras ? (
-        <PainelObras
-          obras={obras}
-          bairros={bairros}
-          limite={limite}
-          regraFronteira={regraFronteira}
-          podeEditar={podeEditar}
-          abrirNova={parametros.nova === "1"}
-          obraInicialId={obraDaUrl(parametros.obra, obras)}
-        />
+        <Suspense fallback={null}>
+          <PainelObras
+            obras={obras}
+            bairros={bairros}
+            limite={limite}
+            regraFronteira={regraFronteira}
+            podeEditar={podeEditar}
+            abrirNova={parametros.nova === "1"}
+            obraInicialId={obraDaUrl(parametros.obra, obras)}
+          />
+        </Suspense>
       ) : (
         <EstadoInterface tipo="erro" />
       )}

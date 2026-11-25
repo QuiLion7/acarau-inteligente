@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
 import { PainelEducacao } from "@/components/educacao/painel-educacao"
 import { EstadoInterface } from "@/components/estados/estado-interface"
@@ -27,15 +28,17 @@ export default function PaginaEducacao() {
         <p className="text-muted-foreground">{modulo.descricao}</p>
       </header>
       {camadaEscolas ? (
-        <PainelEducacao
-          bairros={bairros}
-          limite={limite}
-          escolas={escolas}
-          qualidade={qualidade}
-          regraFronteira={regraFronteira}
-          fonte={camadaEscolas.fonte}
-          dataReferencia={camadaEscolas.dataReferencia}
-        />
+        <Suspense fallback={null}>
+          <PainelEducacao
+            bairros={bairros}
+            limite={limite}
+            escolas={escolas}
+            qualidade={qualidade}
+            regraFronteira={regraFronteira}
+            fonte={camadaEscolas.fonte}
+            dataReferencia={camadaEscolas.dataReferencia}
+          />
+        </Suspense>
       ) : (
         <EstadoInterface tipo="fonte-ausente" />
       )}
